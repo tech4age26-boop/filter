@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../App';
 
 interface Service {
@@ -117,6 +118,8 @@ const CustomAlert = ({ visible, title, message, buttons, onClose, theme }: any) 
 
 export function ProductsServicesScreen() {
     const { theme } = useTheme();
+    const { t } = useTranslation();
+
 
     // --- State ---
     const [items, setItems] = useState<Service[]>([
@@ -331,20 +334,24 @@ export function ProductsServicesScreen() {
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             {/* Header and Tabs */}
             <View style={[styles.header, { backgroundColor: theme.cardBackground }]}>
-                <Text style={[styles.title, { color: theme.text }]}>Products & Services</Text>
+                <Text style={[styles.title, { color: theme.text }]}>{t('products.title')}</Text>
                 <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
                     <MaterialCommunityIcons name="plus" size={20} color="#1C1C1E" />
                 </TouchableOpacity>
             </View>
 
             <View style={[styles.tabContainer, { backgroundColor: theme.cardBackground }]}>
-                {['all', 'services', 'products'].map(tab => (
+                {[
+                    { key: 'all', label: t('common.view_all') },
+                    { key: 'services', label: t('products.services') },
+                    { key: 'products', label: t('products.parts') }
+                ].map(tab => (
                     <TouchableOpacity
-                        key={tab}
-                        style={[styles.tab, activeTab === tab && styles.activeTab]}
-                        onPress={() => setActiveTab(tab as any)}>
-                        <Text style={[styles.tabText, activeTab === tab && styles.activeTabText, activeTab !== tab && { color: theme.subText }]}>
-                            {tab.charAt(0).toUpperCase() + tab.slice(1)} ({tab === 'all' ? items.length : items.filter(i => i.category === (tab === 'services' ? 'service' : 'product')).length})
+                        key={tab.key}
+                        style={[styles.tab, activeTab === tab.key && styles.activeTab]}
+                        onPress={() => setActiveTab(tab.key as any)}>
+                        <Text style={[styles.tabText, activeTab === tab.key && styles.activeTabText, activeTab !== tab.key && { color: theme.subText }]}>
+                            {tab.label} ({tab.key === 'all' ? items.length : items.filter(i => i.category === (tab.key === 'services' ? 'service' : 'product')).length})
                         </Text>
                     </TouchableOpacity>
                 ))}

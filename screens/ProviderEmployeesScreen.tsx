@@ -19,9 +19,11 @@ import {
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../App';
 
 interface Employee {
+
     id: string;
     name: string;
     role: string;
@@ -111,6 +113,8 @@ const CustomAlert = ({ visible, title, message, buttons, onClose, theme }: any) 
 
 export function ProviderEmployeesScreen() {
     const { theme } = useTheme();
+    const { t } = useTranslation();
+
 
     // --- State ---
     const [employees, setEmployees] = useState<Employee[]>([
@@ -266,7 +270,7 @@ export function ProviderEmployeesScreen() {
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             {/* Header */}
             <View style={[styles.header, { backgroundColor: theme.cardBackground }]}>
-                <Text style={[styles.title, { color: theme.text }]}>Employees</Text>
+                <Text style={[styles.title, { color: theme.text }]}>{t('employees.title')}</Text>
                 <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
                     <MaterialCommunityIcons name="plus" size={20} color="#1C1C1E" />
                 </TouchableOpacity>
@@ -322,7 +326,7 @@ export function ProviderEmployeesScreen() {
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
                     <View style={[styles.modalContent, { backgroundColor: theme.cardBackground }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: theme.text }]}>{isEditing ? 'Edit' : 'Add'} Employee</Text>
+                            <Text style={[styles.modalTitle, { color: theme.text }]}>{isEditing ? t('common.edit') : t('common.add')} {t('employees.name')}</Text>
                             <TouchableOpacity onPress={() => setShowAddModal(false)}>
                                 <MaterialCommunityIcons name="close" size={24} color={theme.text} />
                             </TouchableOpacity>

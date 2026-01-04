@@ -1,5 +1,5 @@
 /**
- * Provider Dashboard - Orders Screen
+ * Technician Dashboard - Orders Screen
  */
 
 import React, { useState } from 'react';
@@ -15,41 +15,38 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../App';
 
-export function ProviderOrdersScreen() {
+export function TechnicianOrdersScreen() {
     const { theme } = useTheme();
     const { t } = useTranslation();
-    const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
+    const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
 
-    const activeOrders = [
-        { id: '1', service: 'Oil Change', customer: 'John Smith', time: '30 mins ago', status: 'In Progress', statusColor: '#FFA500' },
-        { id: '2', service: 'Brake Repair', customer: 'Sarah Johnson', time: '2:00 PM Today', status: 'Pending', statusColor: '#007AFF' },
-        { id: '3', service: 'Tire Replacement', customer: 'Mike Wilson', time: '4:00 PM Today', status: 'Scheduled', statusColor: '#8E8E93' },
+    const pendingOrders = [
+        { id: '1', service: 'Roadside Assistance', location: 'King Fahd Rd, Riyadh', time: 'Urgent', status: 'In Transit', statusColor: '#FFA500' },
+        { id: '2', service: 'Tire Change', location: 'Takhassusi St, Riyadh', time: '11:30 AM', status: 'Pending', statusColor: '#007AFF' },
     ];
 
-
     const completedOrders = [
-        { id: '4', service: 'AC Repair', customer: 'Emma Davis', time: 'Yesterday', amount: '$150', statusColor: '#2ECC71' },
-        { id: '5', service: 'Engine Diagnostics', customer: 'David Brown', time: '2 days ago', amount: '$200', statusColor: '#2ECC71' },
-        { id: '6', service: 'Car Wash', customer: 'Lisa Anderson', time: '3 days ago', amount: '$30', statusColor: '#2ECC71' },
+        { id: '3', service: 'Battery Jumpstart', customer: 'Ahmed Ali', time: 'Today, 9:00 AM', amount: '$45', statusColor: '#2ECC71' },
+        { id: '4', service: 'Fuel Delivery', customer: 'Sara Khan', time: 'Yesterday', amount: '$30', statusColor: '#2ECC71' },
     ];
 
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             <View style={[styles.header, { backgroundColor: theme.cardBackground }]}>
-                <Text style={[styles.title, { color: theme.text }]}>{t('orders.title')}</Text>
+                <Text style={[styles.title, { color: theme.text }]}>{t('technician.jobs_title')}</Text>
             </View>
 
             {/* Tabs */}
             <View style={[styles.tabContainer, { backgroundColor: theme.cardBackground }]}>
                 <TouchableOpacity
-                    style={[styles.tab, activeTab === 'active' && styles.activeTab]}
-                    onPress={() => setActiveTab('active')}>
+                    style={[styles.tab, activeTab === 'pending' && styles.activeTab]}
+                    onPress={() => setActiveTab('pending')}>
                     <Text style={[
                         styles.tabText,
-                        activeTab === 'active' && styles.activeTabText,
-                        activeTab !== 'active' && { color: theme.subText }
+                        activeTab === 'pending' && styles.activeTabText,
+                        activeTab !== 'pending' && { color: theme.subText }
                     ]}>
-                        {t('orders.active')} ({activeOrders.length})
+                        {t('technician.ongoing')} ({pendingOrders.length})
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -60,15 +57,15 @@ export function ProviderOrdersScreen() {
                         activeTab === 'completed' && styles.activeTabText,
                         activeTab !== 'completed' && { color: theme.subText }
                     ]}>
-                        {t('orders.completed')} ({completedOrders.length})
+                        {t('technician.history')} ({completedOrders.length})
                     </Text>
                 </TouchableOpacity>
             </View>
 
             {/* Orders List */}
             <ScrollView style={styles.content}>
-                {activeTab === 'active' ? (
-                    activeOrders.map((order) => (
+                {activeTab === 'pending' ? (
+                    pendingOrders.map((order) => (
                         <TouchableOpacity key={order.id} style={[styles.orderCard, { backgroundColor: theme.cardBackground }]}>
                             <View style={styles.orderHeader}>
                                 <Text style={[styles.orderService, { color: theme.text }]}>{order.service}</Text>
@@ -77,8 +74,8 @@ export function ProviderOrdersScreen() {
                                 </View>
                             </View>
                             <View style={styles.orderRow}>
-                                <MaterialCommunityIcons name="account" size={16} color={theme.subText} />
-                                <Text style={[styles.orderCustomer, { color: theme.subText }]}>{order.customer}</Text>
+                                <MaterialCommunityIcons name="map-marker" size={16} color={theme.subText} />
+                                <Text style={[styles.orderCustomer, { color: theme.subText }]}>{order.location}</Text>
                             </View>
                             <View style={styles.orderRow}>
                                 <MaterialCommunityIcons name="clock-outline" size={16} color={theme.subText} />
@@ -86,11 +83,12 @@ export function ProviderOrdersScreen() {
                             </View>
                             <View style={[styles.orderActions, { borderTopColor: theme.border }]}>
                                 <TouchableOpacity style={styles.viewButton}>
-                                    <Text style={styles.viewButtonText}>{t('orders.view_details')}</Text>
+                                    <Text style={styles.viewButtonText}>{t('technician.open_navigation')}</Text>
                                 </TouchableOpacity>
                             </View>
                         </TouchableOpacity>
                     ))
+
                 ) : (
                     completedOrders.map((order) => (
                         <TouchableOpacity key={order.id} style={[styles.orderCard, { backgroundColor: theme.cardBackground }]}>
@@ -99,12 +97,12 @@ export function ProviderOrdersScreen() {
                                 <Text style={styles.orderAmount}>{order.amount}</Text>
                             </View>
                             <View style={styles.orderRow}>
-                                <MaterialCommunityIcons name="account" size={16} color={theme.subText} />
+                                <MaterialCommunityIcons name="account-check" size={16} color={theme.subText} />
                                 <Text style={[styles.orderCustomer, { color: theme.subText }]}>{order.customer}</Text>
                             </View>
                             <View style={styles.orderRow}>
-                                <MaterialCommunityIcons name="check-circle" size={16} color="#2ECC71" />
-                                <Text style={[styles.orderTime, { color: theme.subText }]}>Completed {order.time}</Text>
+                                <MaterialCommunityIcons name="check-decagram" size={16} color="#2ECC71" />
+                                <Text style={[styles.orderTime, { color: theme.subText }]}>{t('status.completed')} {order.time}</Text>
                             </View>
                         </TouchableOpacity>
                     ))

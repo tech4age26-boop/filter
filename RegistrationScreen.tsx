@@ -21,45 +21,51 @@ import {
     Alert,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { launchImageLibrary } from 'react-native-image-picker';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useRef } from 'react';
 
 interface RegistrationScreenProps {
     onBack: () => void;
     onRegister: () => void;
 }
 
+// Production Vercel URL
+const API_BASE_URL = 'https://filter-server.vercel.app';
+// const API_BASE_URL = 'http://10.0.2.2:5000'; // LOCAL DEBUGGING
+
 const SERVICES = [
-    { id: '1', name: 'Car Wash', icon: 'car-wash' },
-    { id: '2', name: 'Oil Change', icon: 'oil' },
-    { id: '3', name: 'Tire Service', icon: 'tire' },
-    { id: '4', name: 'Brake Service', icon: 'car-brake-abs' },
-    { id: '5', name: 'Engine Diagnostics', icon: 'engine' },
-    { id: '6', name: 'AC Repair', icon: 'air-conditioner' },
+    { id: '1', key: 'car_wash', icon: 'car-wash' },
+    { id: '2', key: 'oil_change', icon: 'oil' },
+    { id: '3', key: 'tire_service', icon: 'tire' },
+    { id: '4', key: 'brake_service', icon: 'car-brake-abs' },
+    { id: '5', key: 'engine_diagnostics', icon: 'engine' },
+    { id: '6', key: 'ac_repair', icon: 'air-conditioner' },
 ];
 
 export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenProps) {
-    const [registrationType, setRegistrationType] = useState<'workshop' | 'individual'>('workshop');
+    const { t } = useTranslation();
+    const [registrationType, setRegistrationType] = useState<'workshop' | 'individual' | null>('workshop');
     const [showPassword, setShowPassword] = useState(false);
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
     const [offersOutdoorServices, setOffersOutdoorServices] = useState(false);
 
     // Image State
     const [logo, setLogo] = useState<string | null>(null);
-    const [frontPhoto, setFrontPhoto] = useState<string | null>(null);
 
-    // Location State
+    // Location State (Address Search)
+    const [addressQuery, setAddressQuery] = useState('');
+    const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [selectedAddress, setSelectedAddress] = useState<any>(null);
+    const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-    const [showMap, setShowMap] = useState(false);
-    const [mapRegion, setMapRegion] = useState({
-        latitude: 24.7136,
-        longitude: 46.6753, // Default to Riyadh
-        latitudeDelta: 0.1,
-        longitudeDelta: 0.1,
-    });
 
     const insets = useSafeAreaInsets();
+
 
     const toggleService = (serviceId: string) => {
         setSelectedServices(prev =>
@@ -69,7 +75,7 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
         );
     };
 
-    const pickImage = async (type: 'logo' | 'front') => {
+    const pickImage = async () => {
         const result = await launchImageLibrary({
             mediaType: 'photo',
             quality: 0.8,
@@ -77,23 +83,169 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
         });
 
         if (result.assets && result.assets[0]?.uri) {
-            if (type === 'logo') {
-                setLogo(result.assets[0].uri);
-            } else {
-                setFrontPhoto(result.assets[0].uri);
-            }
+            setLogo(result.assets[0].uri);
         }
     };
 
-    const handleMapPress = (e: any) => {
-        setLocation(e.nativeEvent.coordinate);
+    const fetchSuggestions = async (query: string) => {
+        if (query.length < 3) {
+            setSuggestions([]);
+            return;
+        }
+
+        setIsSearching(true);
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`,
+                {
+                    headers: {
+                        'User-Agent': 'FilterApp/1.0',
+                    },
+                }
+            );
+            const data = await response.json();
+            setSuggestions(data);
+        } catch (error) {
+            console.error('Search error:', error);
+            setSuggestions([]);
+        } finally {
+            setIsSearching(false);
+        }
     };
 
-    const handleConfirmLocation = () => {
-        if (location) {
-            setShowMap(false);
-        } else {
-            Alert.alert('Please select a location on the map');
+    const handleSearchChange = (text: string) => {
+        setAddressQuery(text);
+        if (searchTimeout.current) clearTimeout(searchTimeout.current);
+        searchTimeout.current = setTimeout(() => {
+            fetchSuggestions(text);
+        }, 500);
+    };
+
+    const selectSuggestion = (item: any) => {
+        setAddressQuery(item.display_name);
+        setSelectedAddress(item);
+        setLocation({
+            latitude: parseFloat(item.lat),
+            longitude: parseFloat(item.lon),
+        });
+        setSuggestions([]);
+    };
+
+    // Form State
+    const [workshopName, setWorkshopName] = useState('');
+    const [crNumber, setCrNumber] = useState('');
+    const [vatNumber, setVatNumber] = useState('');
+
+    const [fullName, setFullName] = useState('');
+    const [iqamaId, setIqamaId] = useState('');
+    const [mobileNumber, setMobileNumber] = useState('');
+    const [password, setPassword] = useState('');
+
+    const handleRegister = async () => {
+        console.log('Register Button Pressed');
+        if (!registrationType) {
+            Alert.alert('Error', 'Please select a registration type');
+            return;
+        }
+
+        try {
+            console.log('Building Form Data...');
+            const formData = new FormData();
+            formData.append('type', registrationType);
+            formData.append('offersOutdoorServices', offersOutdoorServices.toString());
+            formData.append('services', JSON.stringify(selectedServices));
+
+            if (registrationType === 'workshop') {
+                console.log('Validating Workshop Data:', { workshopName, fullName, crNumber, vatNumber, hasLogo: !!logo, hasLocation: !!location });
+
+                if (!workshopName || !fullName || !crNumber || !vatNumber || !logo || !location) {
+                    Alert.alert('Error', 'Please fill all fields (including Owner Name), select an address, and upload a logo');
+                    return;
+                }
+                formData.append('workshopName', workshopName);
+                formData.append('ownerName', fullName);
+                formData.append('crNumber', crNumber);
+                formData.append('vatNumber', vatNumber);
+                formData.append('address', addressQuery);
+                formData.append('latitude', location.latitude.toString());
+                formData.append('longitude', location.longitude.toString());
+
+
+                if (logo) {
+                    console.log('Appending logo:', logo);
+                    const logoFile = {
+                        uri: Platform.OS === 'android' ? logo : logo.replace('file://', ''),
+                        type: 'image/jpeg',
+                        name: 'logo.jpg',
+                    } as any;
+                    formData.append('logo', logoFile);
+                }
+
+            } else {
+                console.log('Validating Technician Data:', { fullName, iqamaId, mobileNumber, hasPassword: !!password });
+
+                if (!fullName || !iqamaId || !mobileNumber || !password) {
+                    Alert.alert('Error', 'Please fill all technician fields');
+                    return;
+                }
+                formData.append('fullName', fullName);
+                formData.append('iqamaId', iqamaId);
+                formData.append('mobileNumber', mobileNumber);
+                formData.append('password', password);
+
+                if (location) {
+                    formData.append('address', addressQuery);
+                    formData.append('latitude', location.latitude.toString());
+                    formData.append('longitude', location.longitude.toString());
+                }
+
+
+                if (logo) {
+                    console.log('Appending logo:', logo);
+                    const logoFile = {
+                        uri: Platform.OS === 'android' ? logo : logo.replace('file://', ''),
+                        type: 'image/jpeg',
+                        name: 'profile.jpg',
+                    } as any;
+                    formData.append('logo', logoFile);
+                }
+            }
+
+            const API_URL = `${API_BASE_URL}/api/register`;
+            console.log('Sending request to:', API_URL);
+
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            console.log('Response Status:', response.status);
+            const data = await response.json();
+            console.log('Response Data:', data);
+
+            if (data.success) {
+                // Store user data in local storage
+                const userData = {
+                    id: data.providerId || data.provider?._id,
+                    type: data.provider?.type,
+                    companyName: data.provider?.workshopName || 'Individual Technician',
+                    ownerName: data.provider?.fullName || data.provider?.workshopName || 'Provider',
+                    logoUrl: data.provider?.logoUrl || null,
+                };
+                await AsyncStorage.setItem('user_data', JSON.stringify(userData));
+
+                Alert.alert('Success', t('registration.success_msg'));
+                onRegister();
+            } else {
+                Alert.alert('Error', data.message || 'Registration failed');
+            }
+
+        } catch (error) {
+            console.error('Registration Error:', error);
+            Alert.alert('Error', `Network Request Failed. \nDetails: ${error instanceof Error ? error.message : String(error)}`);
         }
     };
 
@@ -121,8 +273,8 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
 
                     {/* Header */}
                     <View style={regStyles.header}>
-                        <Text style={regStyles.title}>Join as Provider</Text>
-                        <Text style={regStyles.subtitle}>Fill in your details to get started</Text>
+                        <Text style={regStyles.title}>{t('common.register')}</Text>
+                        <Text style={regStyles.subtitle}>{t('auth.signup_title')}</Text>
                     </View>
 
                     {/* Type Switcher */}
@@ -142,7 +294,7 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                 regStyles.typeSwitchText,
                                 registrationType === 'workshop' && regStyles.typeSwitchTextActive
                             ]}>
-                                Workshop
+                                {t('registration.type_workshop')}
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -160,7 +312,7 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                 regStyles.typeSwitchText,
                                 registrationType === 'individual' && regStyles.typeSwitchTextActive
                             ]}>
-                                Technician
+                                {t('registration.type_individual')}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -168,7 +320,7 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                     {/* Workshop Registration Form */}
                     {registrationType === 'workshop' && (
                         <View style={regStyles.formContainer}>
-                            <Text style={regStyles.formTitle}>Workshop Details</Text>
+                            <Text style={regStyles.formTitle}>{t('registration.workshop_details')}</Text>
 
                             {/* Workshop Name */}
                             <View style={regStyles.inputContainer}>
@@ -179,9 +331,28 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                     style={regStyles.inputIcon}
                                 />
                                 <TextInput
-                                    placeholder="Workshop Name"
+                                    placeholder={t('registration.workshop_name')}
                                     placeholderTextColor="#8E8E93"
                                     style={regStyles.input}
+                                    value={workshopName}
+                                    onChangeText={setWorkshopName}
+                                />
+                            </View>
+
+                            {/* Owner Name */}
+                            <View style={regStyles.inputContainer}>
+                                <MaterialCommunityIcons
+                                    name="account"
+                                    size={20}
+                                    color="#8E8E93"
+                                    style={regStyles.inputIcon}
+                                />
+                                <TextInput
+                                    placeholder={t('registration.owner_name')}
+                                    placeholderTextColor="#8E8E93"
+                                    style={regStyles.input}
+                                    value={fullName}
+                                    onChangeText={setFullName}
                                 />
                             </View>
 
@@ -194,10 +365,12 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                     style={regStyles.inputIcon}
                                 />
                                 <TextInput
-                                    placeholder="CR Number"
+                                    placeholder={t('registration.cr_number')}
                                     placeholderTextColor="#8E8E93"
                                     style={regStyles.input}
                                     keyboardType="numeric"
+                                    value={crNumber}
+                                    onChangeText={setCrNumber}
                                 />
                             </View>
 
@@ -210,55 +383,122 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                     style={regStyles.inputIcon}
                                 />
                                 <TextInput
-                                    placeholder="VAT Number"
+                                    placeholder={t('registration.vat_number')}
                                     placeholderTextColor="#8E8E93"
                                     style={regStyles.input}
                                     keyboardType="numeric"
+                                    value={vatNumber}
+                                    onChangeText={setVatNumber}
                                 />
                             </View>
 
-                            {/* Google Map Location */}
-                            <TouchableOpacity
-                                style={regStyles.inputContainer}
-                                onPress={() => setShowMap(true)}>
+                            {/* Mobile Number */}
+                            <View style={regStyles.inputContainer}>
                                 <MaterialCommunityIcons
-                                    name="map-marker"
+                                    name="phone"
                                     size={20}
                                     color="#8E8E93"
                                     style={regStyles.inputIcon}
                                 />
-                                <Text style={[
-                                    regStyles.inputPlaceholder,
-                                    location && { color: '#1C1C1E' }
-                                ]}>
-                                    {location ? `Selected: ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}` : 'Select Location on Map'}
-                                </Text>
+                                <TextInput
+                                    placeholder={t('auth.mobile')}
+                                    placeholderTextColor="#8E8E93"
+                                    style={regStyles.input}
+                                    keyboardType="phone-pad"
+                                    value={mobileNumber}
+                                    onChangeText={setMobileNumber}
+                                />
+                            </View>
+
+                            {/* Password */}
+                            <View style={regStyles.inputContainer}>
                                 <MaterialCommunityIcons
-                                    name="chevron-right"
+                                    name="lock-outline"
                                     size={20}
                                     color="#8E8E93"
+                                    style={regStyles.inputIcon}
                                 />
-                            </TouchableOpacity>
+                                <TextInput
+                                    placeholder={t('auth.password')}
+                                    placeholderTextColor="#8E8E93"
+                                    style={regStyles.input}
+                                    secureTextEntry={!showPassword}
+                                    value={password}
+                                    onChangeText={setPassword}
+                                />
+                                <TouchableOpacity
+                                    style={regStyles.eyeIcon}
+                                    onPress={() => setShowPassword(!showPassword)}>
+                                    <MaterialCommunityIcons
+                                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                                        size={20}
+                                        color="#8E8E93"
+                                    />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Address Search */}
+                            <View style={{ position: 'relative', zIndex: 1000 }}>
+                                <View style={regStyles.inputContainer}>
+                                    <MaterialCommunityIcons
+                                        name="map-marker-outline"
+                                        size={20}
+                                        color="#8E8E93"
+                                        style={regStyles.inputIcon}
+                                    />
+                                    <TextInput
+                                        placeholder={t('registration.address_placeholder')}
+                                        placeholderTextColor="#8E8E93"
+                                        style={regStyles.input}
+                                        value={addressQuery}
+                                        onChangeText={handleSearchChange}
+                                    />
+                                    {isSearching && <View style={{ marginRight: 10 }}><MaterialCommunityIcons name="loading" size={16} color="#F4C430" /></View>}
+                                </View>
+
+                                {suggestions.length > 0 && (
+                                    <View style={regStyles.suggestionsContainer}>
+                                        <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 200 }}>
+                                            {suggestions.map((item, index) => (
+                                                <TouchableOpacity
+                                                    key={index}
+                                                    style={regStyles.suggestionItem}
+                                                    onPress={() => selectSuggestion(item)}>
+                                                    <MaterialCommunityIcons name="map-marker" size={16} color="#8E8E93" />
+                                                    <Text style={regStyles.suggestionText} numberOfLines={2}>
+                                                        {item.display_name}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </ScrollView>
+                                    </View>
+                                )}
+                                {addressQuery.length >= 3 && !isSearching && suggestions.length === 0 && !selectedAddress && (
+                                    <View style={regStyles.suggestionsContainer}>
+                                        <Text style={{ padding: 15, color: '#8E8E93', textAlign: 'center' }}>{t('registration.no_locations')}</Text>
+                                    </View>
+                                )}
+                            </View>
 
                             {/* Logo Upload */}
                             <TouchableOpacity
                                 style={[regStyles.uploadContainer, logo && { borderColor: '#F4C430' }]}
-                                onPress={() => pickImage('logo')}>
+                                onPress={pickImage}>
                                 {logo ? (
                                     <Image source={{ uri: logo }} style={{ width: 100, height: 100, borderRadius: 8 }} />
                                 ) : (
                                     <>
                                         <MaterialCommunityIcons name="image-plus" size={32} color="#8E8E93" />
-                                        <Text style={regStyles.uploadText}>Upload Workshop Logo</Text>
-                                        <Text style={regStyles.uploadSubtext}>PNG, JPG (Max 5MB)</Text>
+                                        <Text style={regStyles.uploadText}>{t('registration.upload_logo')}</Text>
+                                        <Text style={regStyles.uploadSubtext}>{t('registration.file_requirements')}</Text>
                                     </>
                                 )}
                             </TouchableOpacity>
 
                             {/* Service Selection */}
                             <View style={regStyles.serviceSection}>
-                                <Text style={regStyles.serviceSectionTitle}>Select Your Services</Text>
-                                <Text style={regStyles.serviceSectionSubtitle}>Choose one or more services you provide</Text>
+                                <Text style={regStyles.serviceSectionTitle}>{t('registration.select_services')}</Text>
+                                <Text style={regStyles.serviceSectionSubtitle}>{t('registration.services_subtitle')}</Text>
                                 <FlatList
                                     data={SERVICES}
                                     numColumns={2}
@@ -280,7 +520,7 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                                 regStyles.serviceItemText,
                                                 selectedServices.includes(item.id) && regStyles.serviceItemTextSelected
                                             ]}>
-                                                {item.name}
+                                                {t(`services.${item.key}`)}
                                             </Text>
                                             {selectedServices.includes(item.id) && (
                                                 <View style={regStyles.checkMark}>
@@ -297,7 +537,7 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                             <View style={regStyles.outdoorContainer}>
                                 <View style={regStyles.outdoorTextContainer}>
                                     <MaterialCommunityIcons name="map-marker-radius" size={20} color="#1C1C1E" />
-                                    <Text style={regStyles.outdoorTitle}>Do you offer outdoor services?</Text>
+                                    <Text style={regStyles.outdoorTitle}>{t('registration.outdoor_services')}</Text>
                                 </View>
                                 <View style={regStyles.toggleButtons}>
                                     <TouchableOpacity
@@ -310,7 +550,7 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                             regStyles.toggleButtonText,
                                             offersOutdoorServices && regStyles.toggleButtonTextActive
                                         ]}>
-                                            Yes
+                                            {t('common.yes')}
                                         </Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
@@ -323,30 +563,16 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                             regStyles.toggleButtonText,
                                             !offersOutdoorServices && regStyles.toggleButtonTextActive
                                         ]}>
-                                            No
+                                            {t('common.no')}
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
 
-                            {/* Front Photo Upload */}
-                            <TouchableOpacity
-                                style={[regStyles.uploadContainer, frontPhoto && { borderColor: '#F4C430' }]}
-                                onPress={() => pickImage('front')}>
-                                {frontPhoto ? (
-                                    <Image source={{ uri: frontPhoto }} style={{ width: 100, height: 100, borderRadius: 8 }} />
-                                ) : (
-                                    <>
-                                        <MaterialCommunityIcons name="camera" size={32} color="#8E8E93" />
-                                        <Text style={regStyles.uploadText}>Upload Front Photo</Text>
-                                        <Text style={regStyles.uploadSubtext}>PNG, JPG (Max 5MB)</Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
 
                             {/* Submit Button */}
-                            <TouchableOpacity style={regStyles.submitButton} onPress={onRegister}>
-                                <Text style={regStyles.submitButtonText}>Submit Registration</Text>
+                            <TouchableOpacity style={regStyles.submitButton} onPress={handleRegister}>
+                                <Text style={regStyles.submitButtonText}>{t('registration.submit')}</Text>
                                 <MaterialCommunityIcons
                                     name="check-circle"
                                     size={20}
@@ -362,10 +588,10 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                             <TouchableOpacity
                                 style={regStyles.changeTypeButton}
                                 onPress={() => setRegistrationType(null)}>
-                                <Text style={regStyles.changeTypeText}>← Change Type</Text>
+                                <Text style={regStyles.changeTypeText}>← {t('registration.change_type')}</Text>
                             </TouchableOpacity>
 
-                            <Text style={regStyles.formTitle}>Individual Technician Registration</Text>
+                            <Text style={regStyles.formTitle}>{t('registration.technician_details')}</Text>
 
                             {/* Name */}
                             <View style={regStyles.inputContainer}>
@@ -376,9 +602,11 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                     style={regStyles.inputIcon}
                                 />
                                 <TextInput
-                                    placeholder="Full Name"
+                                    placeholder={t('registration.full_name')}
                                     placeholderTextColor="#8E8E93"
                                     style={regStyles.input}
+                                    value={fullName}
+                                    onChangeText={setFullName}
                                 />
                             </View>
 
@@ -391,10 +619,12 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                     style={regStyles.inputIcon}
                                 />
                                 <TextInput
-                                    placeholder="Iqama ID"
+                                    placeholder={t('registration.iqama_id')}
                                     placeholderTextColor="#8E8E93"
                                     style={regStyles.input}
                                     keyboardType="numeric"
+                                    value={iqamaId}
+                                    onChangeText={setIqamaId}
                                 />
                             </View>
 
@@ -407,10 +637,12 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                     style={regStyles.inputIcon}
                                 />
                                 <TextInput
-                                    placeholder="Mobile Number"
+                                    placeholder={t('auth.mobile')}
                                     placeholderTextColor="#8E8E93"
                                     style={regStyles.input}
                                     keyboardType="phone-pad"
+                                    value={mobileNumber}
+                                    onChangeText={setMobileNumber}
                                 />
                             </View>
 
@@ -423,10 +655,12 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                     style={regStyles.inputIcon}
                                 />
                                 <TextInput
-                                    placeholder="Password"
+                                    placeholder={t('auth.password')}
                                     placeholderTextColor="#8E8E93"
                                     style={regStyles.input}
                                     secureTextEntry={!showPassword}
+                                    value={password}
+                                    onChangeText={setPassword}
                                 />
                                 <TouchableOpacity
                                     style={regStyles.eyeIcon}
@@ -441,8 +675,8 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
 
                             {/* Service Selection */}
                             <View style={regStyles.serviceSection}>
-                                <Text style={regStyles.serviceSectionTitle}>Select Your Services</Text>
-                                <Text style={regStyles.serviceSectionSubtitle}>Choose one or more services you provide</Text>
+                                <Text style={regStyles.serviceSectionTitle}>{t('registration.select_services')}</Text>
+                                <Text style={regStyles.serviceSectionSubtitle}>{t('registration.services_subtitle')}</Text>
                                 <FlatList
                                     data={SERVICES}
                                     numColumns={2}
@@ -464,7 +698,7 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                                 regStyles.serviceItemText,
                                                 selectedServices.includes(item.id) && regStyles.serviceItemTextSelected
                                             ]}>
-                                                {item.name}
+                                                {t(`services.${item.key}`)}
                                             </Text>
                                             {selectedServices.includes(item.id) && (
                                                 <View style={regStyles.checkMark}>
@@ -481,7 +715,7 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                             <View style={regStyles.outdoorContainer}>
                                 <View style={regStyles.outdoorTextContainer}>
                                     <MaterialCommunityIcons name="map-marker-radius" size={20} color="#1C1C1E" />
-                                    <Text style={regStyles.outdoorTitle}>Do you offer outdoor services?</Text>
+                                    <Text style={regStyles.outdoorTitle}>{t('registration.outdoor_services')}</Text>
                                 </View>
                                 <View style={regStyles.toggleButtons}>
                                     <TouchableOpacity
@@ -494,7 +728,7 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                             regStyles.toggleButtonText,
                                             offersOutdoorServices && regStyles.toggleButtonTextActive
                                         ]}>
-                                            Yes
+                                            {t('common.yes')}
                                         </Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
@@ -507,7 +741,7 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                             regStyles.toggleButtonText,
                                             !offersOutdoorServices && regStyles.toggleButtonTextActive
                                         ]}>
-                                            No
+                                            {t('common.no')}
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
@@ -516,13 +750,72 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                             <View style={regStyles.noteContainer}>
                                 <MaterialCommunityIcons name="information" size={16} color="#8E8E93" />
                                 <Text style={regStyles.noteText}>
-                                    Your mobile number will be your login username
+                                    {t('registration.username_note')}
                                 </Text>
                             </View>
 
+                            {/* Address Search */}
+                            <View style={{ position: 'relative', zIndex: 1000 }}>
+                                <View style={regStyles.inputContainer}>
+                                    <MaterialCommunityIcons
+                                        name="map-marker-outline"
+                                        size={20}
+                                        color="#8E8E93"
+                                        style={regStyles.inputIcon}
+                                    />
+                                    <TextInput
+                                        placeholder={t('registration.work_address')}
+                                        placeholderTextColor="#8E8E93"
+                                        style={regStyles.input}
+                                        value={addressQuery}
+                                        onChangeText={handleSearchChange}
+                                    />
+                                    {isSearching && <View style={{ marginRight: 10 }}><MaterialCommunityIcons name="loading" size={16} color="#F4C430" /></View>}
+                                </View>
+
+                                {suggestions.length > 0 && (
+                                    <View style={regStyles.suggestionsContainer}>
+                                        <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 200 }}>
+                                            {suggestions.map((item, index) => (
+                                                <TouchableOpacity
+                                                    key={index}
+                                                    style={regStyles.suggestionItem}
+                                                    onPress={() => selectSuggestion(item)}>
+                                                    <MaterialCommunityIcons name="map-marker" size={16} color="#8E8E93" />
+                                                    <Text style={regStyles.suggestionText} numberOfLines={2}>
+                                                        {item.display_name}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </ScrollView>
+                                    </View>
+                                )}
+                                {addressQuery.length >= 3 && !isSearching && suggestions.length === 0 && !selectedAddress && (
+                                    <View style={regStyles.suggestionsContainer}>
+                                        <Text style={{ padding: 15, color: '#8E8E93', textAlign: 'center' }}>{t('registration.no_locations')}</Text>
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* Logo/Profile Image Upload */}
+                            <Text style={[regStyles.serviceSectionTitle, { marginTop: 20 }]}>{t('registration.profile_photo')}</Text>
+                            <TouchableOpacity
+                                style={[regStyles.uploadContainer, logo && { borderColor: '#F4C430' }]}
+                                onPress={pickImage}>
+                                {logo ? (
+                                    <Image source={{ uri: logo }} style={{ width: 100, height: 100, borderRadius: 8 }} />
+                                ) : (
+                                    <>
+                                        <MaterialCommunityIcons name="image-plus" size={32} color="#8E8E93" />
+                                        <Text style={regStyles.uploadText}>{t('registration.upload_photo')}</Text>
+                                        <Text style={regStyles.uploadSubtext}>{t('registration.file_requirements')}</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+
                             {/* Submit Button */}
-                            <TouchableOpacity style={regStyles.submitButton}>
-                                <Text style={regStyles.submitButtonText}>Submit Registration</Text>
+                            <TouchableOpacity style={regStyles.submitButton} onPress={handleRegister}>
+                                <Text style={regStyles.submitButtonText}>{t('registration.submit')}</Text>
                                 <MaterialCommunityIcons
                                     name="check-circle"
                                     size={20}
@@ -533,35 +826,6 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                     )}
                 </ScrollView>
             </KeyboardAvoidingView>
-
-            {/* Map Modal */}
-            <Modal
-                visible={showMap}
-                animationType="slide"
-                onRequestClose={() => setShowMap(false)}>
-                <View style={{ flex: 1 }}>
-                    <MapView
-                        provider={PROVIDER_GOOGLE}
-                        style={{ flex: 1 }}
-                        region={mapRegion}
-                        onPress={handleMapPress}>
-                        {location && <Marker coordinate={location} />}
-                    </MapView>
-
-                    <View style={regStyles.mapButtons}>
-                        <TouchableOpacity
-                            style={regStyles.cancelButton}
-                            onPress={() => setShowMap(false)}>
-                            <Text style={regStyles.cancelButtonText}>Cancel</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={regStyles.confirmButton}
-                            onPress={handleConfirmLocation}>
-                            <Text style={regStyles.confirmButtonText}>Confirm Location</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
         </ImageBackground>
     );
 }
@@ -744,6 +1008,7 @@ const regStyles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
         color: '#1C1C1E',
+        marginRight: 8,
     },
     serviceSection: {
         marginTop: 8,
@@ -758,6 +1023,35 @@ const regStyles = StyleSheet.create({
         fontSize: 13,
         color: '#8E8E93',
         marginBottom: 12,
+    },
+    suggestionsContainer: {
+        position: 'absolute',
+        top: 60,
+        left: 0,
+        right: 0,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 10,
+        zIndex: 9999,
+        borderWidth: 1,
+        borderColor: '#F0F0F5',
+    },
+    suggestionItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F5',
+        gap: 10,
+    },
+    suggestionText: {
+        fontSize: 14,
+        color: '#1C1C1E',
+        flex: 1,
     },
     serviceList: {
         gap: 12,

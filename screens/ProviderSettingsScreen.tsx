@@ -12,22 +12,41 @@ import {
     Switch,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../App';
 
-export function ProviderSettingsScreen() {
+interface ProviderSettingsScreenProps {
+    onLogout?: () => void;
+}
+
+export function ProviderSettingsScreen({ onLogout }: ProviderSettingsScreenProps) {
     const { theme, toggleTheme, isDarkMode } = useTheme();
+    const { t } = useTranslation();
     const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
     const [autoAcceptOrders, setAutoAcceptOrders] = React.useState(false);
+
+
+    const handleLogout = async () => {
+        try {
+            await AsyncStorage.removeItem('user_data');
+            if (onLogout) {
+                onLogout();
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+    };
 
     return (
         <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
             <View style={[styles.header, { backgroundColor: theme.cardBackground }]}>
-                <Text style={[styles.title, { color: theme.text }]}>Settings</Text>
+                <Text style={[styles.title, { color: theme.text }]}>{t('settings.settings_title')}</Text>
             </View>
 
             {/* Workshop Profile */}
             <View style={[styles.section, { backgroundColor: theme.cardBackground }]}>
-                <Text style={styles.sectionTitle}>WORKSHOP PROFILE</Text>
+                <Text style={styles.sectionTitle}>{t('settings.account')}</Text>
                 <TouchableOpacity style={[styles.settingItem, { borderBottomColor: theme.border }]}>
                     <View style={styles.settingLeft}>
                         <MaterialCommunityIcons name="store" size={22} color={theme.iconColor} />
@@ -53,11 +72,11 @@ export function ProviderSettingsScreen() {
 
             {/* Appearance */}
             <View style={[styles.section, { backgroundColor: theme.cardBackground }]}>
-                <Text style={styles.sectionTitle}>APPEARANCE</Text>
+                <Text style={styles.sectionTitle}>{t('settings.appearance')}</Text>
                 <View style={[styles.settingItem, { borderBottomColor: theme.border }]}>
                     <View style={styles.settingLeft}>
                         <MaterialCommunityIcons name="theme-light-dark" size={22} color={theme.iconColor} />
-                        <Text style={[styles.settingText, { color: theme.text }]}>Dark Mode</Text>
+                        <Text style={[styles.settingText, { color: theme.text }]}>{t('settings.dark_mode')}</Text>
                     </View>
                     <Switch
                         value={isDarkMode}
@@ -70,7 +89,7 @@ export function ProviderSettingsScreen() {
 
             {/* Notifications */}
             <View style={[styles.section, { backgroundColor: theme.cardBackground }]}>
-                <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
+                <Text style={styles.sectionTitle}>{t('settings.notifications')}</Text>
                 <View style={[styles.settingItem, { borderBottomColor: theme.border }]}>
                     <View style={styles.settingLeft}>
                         <MaterialCommunityIcons name="bell" size={22} color={theme.iconColor} />
@@ -136,9 +155,12 @@ export function ProviderSettingsScreen() {
             </View>
 
             {/* Logout */}
-            <TouchableOpacity style={[styles.logoutButton, { backgroundColor: theme.cardBackground }]}>
+            <TouchableOpacity
+                style={[styles.logoutButton, { backgroundColor: theme.cardBackground }]}
+                onPress={handleLogout}
+            >
                 <MaterialCommunityIcons name="logout" size={20} color="#FF3B30" />
-                <Text style={styles.logoutText}>Log Out</Text>
+                <Text style={styles.logoutText}>{t('common.logout')}</Text>
             </TouchableOpacity>
 
             <View style={{ height: 40 }} />

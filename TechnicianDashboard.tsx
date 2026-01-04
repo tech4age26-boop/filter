@@ -1,27 +1,27 @@
 /**
- * Provider Dashboard with Bottom Tab Navigation
+ * Technician Dashboard with Bottom Tab Navigation
  */
 
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+
 import { useTranslation } from 'react-i18next';
-import { ProviderHomeScreen } from './screens/ProviderHomeScreen';
-import { ProviderEmployeesScreen } from './screens/ProviderEmployeesScreen';
-import { ProviderOrdersScreen } from './screens/ProviderOrdersScreen';
-import { ProductsServicesScreen } from './screens/ProductsServicesScreen';
-import { ProviderSettingsScreen } from './screens/ProviderSettingsScreen';
+import { TechnicianHomeScreen } from './screens/TechnicianHomeScreen';
+import { TechnicianOrdersScreen } from './screens/TechnicianOrdersScreen';
+import { TechnicianServicesScreen } from './screens/TechnicianServicesScreen';
+import { TechnicianSettingsScreen } from './screens/TechnicianSettingsScreen';
 
 import { useTheme } from './App';
 
 const Tab = createBottomTabNavigator();
 
-interface ProviderDashboardProps {
+interface TechnicianDashboardProps {
     onLogout?: () => void;
 }
 
-export function ProviderDashboard({ onLogout }: ProviderDashboardProps) {
+export function TechnicianDashboard({ onLogout }: TechnicianDashboardProps) {
     const { theme } = useTheme();
     const { t } = useTranslation();
 
@@ -41,7 +41,7 @@ export function ProviderDashboard({ onLogout }: ProviderDashboardProps) {
                         shadowOffset: { width: 0, height: -4 },
                         shadowOpacity: 0.1,
                         shadowRadius: 10,
-                        borderTopWidth: 0, // Remove default border
+                        borderTopWidth: 0,
                     },
                     tabBarLabelStyle: {
                         fontSize: 11,
@@ -51,7 +51,7 @@ export function ProviderDashboard({ onLogout }: ProviderDashboardProps) {
                 }}>
                 <Tab.Screen
                     name="Home"
-                    component={ProviderHomeScreen}
+                    component={TechnicianHomeScreen}
                     options={{
                         tabBarLabel: t('common.welcome'),
                         tabBarIcon: ({ color, size }) => (
@@ -60,32 +60,22 @@ export function ProviderDashboard({ onLogout }: ProviderDashboardProps) {
                     }}
                 />
                 <Tab.Screen
-                    name="Products"
-                    component={ProductsServicesScreen}
-                    options={{
-                        tabBarLabel: t('products.title'),
-                        tabBarIcon: ({ color, size }) => (
-                            <MaterialCommunityIcons name="package-variant" size={size} color={color} />
-                        ),
-                    }}
-                />
-                <Tab.Screen
-                    name="Employees"
-                    component={ProviderEmployeesScreen}
-                    options={{
-                        tabBarLabel: t('employees.title'),
-                        tabBarIcon: ({ color, size }) => (
-                            <MaterialCommunityIcons name="account-group" size={size} color={color} />
-                        ),
-                    }}
-                />
-                <Tab.Screen
-                    name="Orders"
-                    component={ProviderOrdersScreen}
+                    name="Jobs"
+                    component={TechnicianOrdersScreen}
                     options={{
                         tabBarLabel: t('orders.title'),
                         tabBarIcon: ({ color, size }) => (
-                            <MaterialCommunityIcons name="clipboard-list" size={size} color={color} />
+                            <MaterialCommunityIcons name="clipboard-text-clock" size={size} color={color} />
+                        ),
+                    }}
+                />
+                <Tab.Screen
+                    name="Services"
+                    component={TechnicianServicesScreen}
+                    options={{
+                        tabBarLabel: t('products.services'),
+                        tabBarIcon: ({ color, size }) => (
+                            <MaterialCommunityIcons name="hammer-wrench" size={size} color={color} />
                         ),
                     }}
                 />
@@ -94,11 +84,11 @@ export function ProviderDashboard({ onLogout }: ProviderDashboardProps) {
                     options={{
                         tabBarLabel: t('settings.settings_title'),
                         tabBarIcon: ({ color, size }) => (
-                            <MaterialCommunityIcons name="cog" size={size} color={color} />
+                            <MaterialCommunityIcons name="account-cog" size={size} color={color} />
                         ),
                     }}
                 >
-                    {(props) => <ProviderSettingsScreen {...props} onLogout={onLogout} />}
+                    {(props) => <TechnicianSettingsScreen {...props} onLogout={onLogout} />}
                 </Tab.Screen>
             </Tab.Navigator>
         </NavigationContainer>

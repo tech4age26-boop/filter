@@ -4,7 +4,9 @@
  * @format
  */
 
-import React, { useState, createContext, useContext } from 'react';
+import React, { useState, createContext, useContext, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LanguageScreen } from './screens/LanguageScreen';
 import {
   StatusBar,
   StyleSheet,
@@ -73,12 +75,30 @@ export function useTheme() {
 function App(): React.JSX.Element {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLanguageSelected, setIsLanguageSelected] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    checkLanguageSelection();
+  }, []);
+
+  const checkLanguageSelection = async () => {
+    try {
+      const selected = await AsyncStorage.getItem('has-selected-language');
+      setIsLanguageSelected(selected === 'true');
+    } catch (error) {
+      setIsLanguageSelected(false);
+    }
+  };
 
   const toggleTheme = () => {
     setIsDarkMode((prev) => !prev);
   };
 
   const theme = isDarkMode ? darkTheme : lightTheme;
+
+  if (isLanguageSelected === null) {
+    return <View style={{ flex: 1, backgroundColor: '#121212' }} />;
+  }
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, isDarkMode }}>
@@ -87,7 +107,9 @@ function App(): React.JSX.Element {
           barStyle={isDarkMode ? 'light-content' : 'dark-content'}
           backgroundColor={theme.background}
         />
-        {isAuthenticated ? (
+        {!isLanguageSelected ? (
+          <LanguageScreen onSelect={() => setIsLanguageSelected(true)} />
+        ) : isAuthenticated ? (
           <MainApp />
         ) : (
           <AuthScreen onLogin={() => setIsAuthenticated(true)} />

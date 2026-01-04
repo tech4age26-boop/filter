@@ -16,10 +16,13 @@ import {
     Platform,
     ScrollView,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RegistrationScreen } from './RegistrationScreen';
 import { ProviderDashboard } from './ProviderDashboard';
+import { TechnicianDashboard } from './TechnicianDashboard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AuthScreenProps {
     onLogin: () => void;
@@ -30,17 +33,39 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [showRegistration, setShowRegistration] = useState(false);
-    const [showProviderDashboard, setShowProviderDashboard] = useState(false);
+    const [dashboardType, setDashboardType] = useState<'provider' | 'technician' | null>(null);
     const insets = useSafeAreaInsets();
+    const { t } = useTranslation();
 
-    if (showProviderDashboard) {
-        return <ProviderDashboard />;
+    if (dashboardType === 'provider') {
+        return <ProviderDashboard onLogout={() => setDashboardType(null)} />;
     }
+
+    if (dashboardType === 'technician') {
+        return <TechnicianDashboard onLogout={() => setDashboardType(null)} />;
+    }
+
+    const handleRegisterSuccess = async () => {
+        try {
+            const data = await AsyncStorage.getItem('user_data');
+            if (data) {
+                const user = JSON.parse(data);
+                if (user.type === 'individual') {
+                    setDashboardType('technician');
+                } else {
+                    setDashboardType('provider');
+                }
+            }
+        } catch (e) {
+            setDashboardType('provider'); // Fallback
+        }
+        setShowRegistration(false);
+    };
 
     if (showRegistration) {
         return <RegistrationScreen
             onBack={() => setShowRegistration(false)}
-            onRegister={() => setShowProviderDashboard(true)}
+            onRegister={handleRegisterSuccess}
         />;
     }
 
@@ -65,7 +90,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                         <View style={authStyles.logoBadge}>
                             <Text style={authStyles.logoText}>FILTER</Text>
                         </View>
-                        <Text style={authStyles.tagline}>PREMIUM AUTOMOTIVE SERVICE</Text>
+                        <Text style={authStyles.tagline}>{t('auth.tagline')}</Text>
                     </View>
 
                     {/* Tab Switcher */}
@@ -78,7 +103,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                                     authStyles.tabText,
                                     isLogin && authStyles.activeTabText,
                                 ]}>
-                                Log In
+                                {t('common.login')}
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -89,7 +114,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                                     authStyles.tabText,
                                     !isLogin && authStyles.activeTabText,
                                 ]}>
-                                Sign Up
+                                {t('common.register')}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -105,7 +130,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                                 style={authStyles.inputIcon}
                             />
                             <TextInput
-                                placeholder="Email Address"
+                                placeholder={t('auth.email')}
                                 placeholderTextColor="#8E8E93"
                                 style={authStyles.input}
                                 keyboardType="email-address"
@@ -123,7 +148,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                                     style={authStyles.inputIcon}
                                 />
                                 <TextInput
-                                    placeholder="Phone Number"
+                                    placeholder={t('auth.mobile')}
                                     placeholderTextColor="#8E8E93"
                                     style={authStyles.input}
                                     keyboardType="phone-pad"
@@ -140,7 +165,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                                 style={authStyles.inputIcon}
                             />
                             <TextInput
-                                placeholder="Password"
+                                placeholder={t('auth.password')}
                                 placeholderTextColor="#8E8E93"
                                 style={authStyles.input}
                                 secureTextEntry={!showPassword}
@@ -166,7 +191,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                                     style={authStyles.inputIcon}
                                 />
                                 <TextInput
-                                    placeholder="Confirm Password"
+                                    placeholder={t('auth.confirm_password')}
                                     placeholderTextColor="#8E8E93"
                                     style={authStyles.input}
                                     secureTextEntry={!showConfirmPassword}
@@ -191,14 +216,14 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                         {isLogin && (
                             <TouchableOpacity style={authStyles.forgotPassword}>
                                 <Text style={authStyles.forgotPasswordText}>
-                                    Forgot Password?
+                                    {t('auth.forgot_password')}
                                 </Text>
                             </TouchableOpacity>
                         )}
 
                         {/* Continue Button */}
                         <TouchableOpacity style={authStyles.continueButton} onPress={onLogin}>
-                            <Text style={authStyles.continueButtonText}>Continue</Text>
+                            <Text style={authStyles.continueButtonText}>{t('common.continue')}</Text>
                             <MaterialCommunityIcons
                                 name="arrow-right"
                                 size={20}
@@ -211,8 +236,8 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                             style={authStyles.technicianLink}
                             onPress={() => setShowRegistration(true)}>
                             <Text style={authStyles.technicianText}>
-                                Are you a individual or company?{' '}
-                                <Text style={authStyles.technicianLinkText}>Apply here</Text>
+                                {t('common.provider_question')}{' '}
+                                <Text style={authStyles.technicianLinkText}>{t('common.apply_here')}</Text>
                             </Text>
                         </TouchableOpacity>
                     </View>

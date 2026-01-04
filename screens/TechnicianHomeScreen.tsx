@@ -1,5 +1,5 @@
 /**
- * Provider Dashboard - Home Screen
+ * Technician Dashboard - Home Screen
  */
 
 import React, { useState, useEffect } from 'react';
@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../App';
 
-export function ProviderHomeScreen() {
+export function TechnicianHomeScreen() {
     const { theme } = useTheme();
     const { t } = useTranslation();
     const [userData, setUserData] = useState<any>(null);
@@ -43,7 +43,7 @@ export function ProviderHomeScreen() {
                 <View>
                     <Text style={styles.greeting}>{t('home.welcome_back')}, {userData?.ownerName || t('common.user')}! 👋</Text>
                     <Text style={[styles.shopName, { color: theme.text }]}>
-                        {userData?.workshopName || 'Filter Workshop'}
+                        {userData?.workshopName || 'Filter Technician'}
                     </Text>
                 </View>
 
@@ -54,7 +54,7 @@ export function ProviderHomeScreen() {
                     />
                 ) : (
                     <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: '#F4C430', alignItems: 'center', justifyContent: 'center' }}>
-                        <MaterialCommunityIcons name="account" size={30} color="#1C1C1E" />
+                        <MaterialCommunityIcons name="account-wrench" size={30} color="#1C1C1E" />
                     </View>
                 )}
             </View>
@@ -63,58 +63,58 @@ export function ProviderHomeScreen() {
             <View style={styles.statsContainer}>
                 <View style={[styles.statCard, { backgroundColor: theme.cardBackground }]}>
                     <MaterialCommunityIcons name="clipboard-check" size={28} color="#F4C430" />
-                    <Text style={[styles.statNumber, { color: theme.text }]}>24</Text>
-                    <Text style={styles.statLabel}>{t('home.active_orders')}</Text>
+                    <Text style={[styles.statNumber, { color: theme.text }]}>12</Text>
+                    <Text style={styles.statLabel}>{t('home.my_tasks')}</Text>
                 </View>
                 <View style={[styles.statCard, { backgroundColor: theme.cardBackground }]}>
-                    <MaterialCommunityIcons name="account-group" size={28} color="#2ECC71" />
-                    <Text style={[styles.statNumber, { color: theme.text }]}>8</Text>
-                    <Text style={styles.statLabel}>{t('home.employees')}</Text>
+                    <MaterialCommunityIcons name="star" size={28} color="#FFB800" />
+                    <Text style={[styles.statNumber, { color: theme.text }]}>4.9</Text>
+                    <Text style={styles.statLabel}>{t('home.rating')}</Text>
                 </View>
             </View>
 
             <View style={styles.statsContainer}>
                 <View style={[styles.statCard, { backgroundColor: theme.cardBackground }]}>
-                    <MaterialCommunityIcons name="cash" size={28} color="#007AFF" />
-                    <Text style={[styles.statNumber, { color: theme.text }]}>$3,240</Text>
-                    <Text style={styles.statLabel}>{t('home.revenue_today')}</Text>
+                    <MaterialCommunityIcons name="cash" size={28} color="#2ECC71" />
+                    <Text style={[styles.statNumber, { color: theme.text }]}>$450</Text>
+                    <Text style={styles.statLabel}>{t('home.earnings_today')}</Text>
                 </View>
                 <View style={[styles.statCard, { backgroundColor: theme.cardBackground }]}>
-                    <MaterialCommunityIcons name="star" size={28} color="#FFB800" />
-                    <Text style={[styles.statNumber, { color: theme.text }]}>4.8</Text>
-                    <Text style={styles.statLabel}>{t('home.rating')}</Text>
+                    <MaterialCommunityIcons name="map-marker-distance" size={28} color="#007AFF" />
+                    <Text style={[styles.statNumber, { color: theme.text }]}>5</Text>
+                    <Text style={styles.statLabel}>{t('home.onsite_visits')}</Text>
                 </View>
             </View>
 
-            {/* Recent Orders */}
+            {/* My Active Tasks */}
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                    <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('home.recent_orders')}</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('home.my_tasks')}</Text>
                     <TouchableOpacity>
-                        <Text style={styles.viewAll}>{t('common.view_all')}</Text>
+                        <Text style={styles.viewAll}>{t('home.view_history')}</Text>
                     </TouchableOpacity>
                 </View>
 
                 <View style={[styles.orderCard, { backgroundColor: theme.cardBackground }]}>
                     <View style={styles.orderHeader}>
-                        <Text style={[styles.orderTitle, { color: theme.text }]}>Oil Change Service</Text>
+                        <Text style={[styles.orderTitle, { color: theme.text }]}>{t('services.brake_service')}</Text>
                         <View style={[styles.statusBadge, { backgroundColor: '#FFF3CD' }]}>
-                            <Text style={[styles.statusText, { color: '#856404' }]}>{t('status.in_progress')}</Text>
+                            <Text style={[styles.statusText, { color: '#856404' }]}>{t('status.in_transit')}</Text>
                         </View>
                     </View>
-                    <Text style={styles.orderCustomer}>Customer: John Smith</Text>
-                    <Text style={styles.orderTime}>Started 30 mins ago</Text>
+                    <Text style={styles.orderCustomer}>{t('common.location')}: Al Olaya, Riyadh</Text>
+                    <Text style={styles.orderTime}>{t('common.eta')}: 15 mins</Text>
                 </View>
 
                 <View style={[styles.orderCard, { backgroundColor: theme.cardBackground }]}>
                     <View style={styles.orderHeader}>
-                        <Text style={[styles.orderTitle, { color: theme.text }]}>Brake Repair</Text>
+                        <Text style={[styles.orderTitle, { color: theme.text }]}>{t('services.battery_replacement')}</Text>
                         <View style={[styles.statusBadge, { backgroundColor: '#D1ECF1' }]}>
-                            <Text style={[styles.statusText, { color: '#0C5460' }]}>{t('status.pending')}</Text>
+                            <Text style={[styles.statusText, { color: '#0C5460' }]}>{t('status.next_task')}</Text>
                         </View>
                     </View>
-                    <Text style={styles.orderCustomer}>Customer: Sarah Johnson</Text>
-                    <Text style={styles.orderTime}>Scheduled for 2:00 PM</Text>
+                    <Text style={styles.orderCustomer}>{t('common.customer')}: David Wilson</Text>
+                    <Text style={styles.orderTime}>{t('common.scheduled')}: 4:30 PM</Text>
                 </View>
             </View>
         </ScrollView>
@@ -134,12 +134,12 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     greeting: {
-        fontSize: 16,
+        fontSize: 14,
         color: '#8E8E93',
         marginBottom: 4,
     },
     shopName: {
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: 'bold',
         color: '#1C1C1E',
     },
@@ -162,13 +162,13 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     statNumber: {
-        fontSize: 22,
+        fontSize: 20,
         fontWeight: 'bold',
         color: '#1C1C1E',
         marginTop: 8,
     },
     statLabel: {
-        fontSize: 12,
+        fontSize: 11,
         color: '#8E8E93',
         marginTop: 4,
     },
