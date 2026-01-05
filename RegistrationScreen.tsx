@@ -140,6 +140,7 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
     const [iqamaId, setIqamaId] = useState('');
     const [mobileNumber, setMobileNumber] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
 
     const handleRegister = async () => {
         console.log('Register Button Pressed');
@@ -156,14 +157,21 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
             formData.append('services', JSON.stringify(selectedServices));
 
             if (registrationType === 'workshop') {
-                console.log('Validating Workshop Data:', { workshopName, fullName, crNumber, vatNumber, hasLogo: !!logo, hasLocation: !!location });
+                console.log('Validating Workshop Data:', { workshopName, fullName, mobileNumber, hasPassword: !!password, crNumber, vatNumber, hasLogo: !!logo, hasLocation: !!location });
 
-                if (!workshopName || !fullName || !crNumber || !vatNumber || !logo || !location) {
-                    Alert.alert('Error', 'Please fill all fields (including Owner Name), select an address, and upload a logo');
+                if (!workshopName || !fullName || !mobileNumber || !password || !confirmPassword || !crNumber || !vatNumber || !logo || !location) {
+                    Alert.alert('Error', 'Please fill all fields, select an address, and upload a logo');
+                    return;
+                }
+
+                if (password !== confirmPassword) {
+                    Alert.alert('Error', 'Passwords do not match');
                     return;
                 }
                 formData.append('workshopName', workshopName);
                 formData.append('ownerName', fullName);
+                formData.append('mobileNumber', mobileNumber);
+                formData.append('password', password);
                 formData.append('crNumber', crNumber);
                 formData.append('vatNumber', vatNumber);
                 formData.append('address', addressQuery);
@@ -184,8 +192,13 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
             } else {
                 console.log('Validating Technician Data:', { fullName, iqamaId, mobileNumber, hasPassword: !!password });
 
-                if (!fullName || !iqamaId || !mobileNumber || !password) {
+                if (!fullName || !iqamaId || !mobileNumber || !password || !confirmPassword) {
                     Alert.alert('Error', 'Please fill all technician fields');
+                    return;
+                }
+
+                if (password !== confirmPassword) {
+                    Alert.alert('Error', 'Passwords do not match');
                     return;
                 }
                 formData.append('fullName', fullName);
@@ -437,6 +450,24 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                 </TouchableOpacity>
                             </View>
 
+                            {/* Confirm Password */}
+                            <View style={regStyles.inputContainer}>
+                                <MaterialCommunityIcons
+                                    name="lock-check-outline"
+                                    size={20}
+                                    color="#8E8E93"
+                                    style={regStyles.inputIcon}
+                                />
+                                <TextInput
+                                    placeholder={t('auth.confirm_password')}
+                                    placeholderTextColor="#8E8E93"
+                                    style={regStyles.input}
+                                    secureTextEntry={!showPassword}
+                                    value={confirmPassword}
+                                    onChangeText={setConfirmPassword}
+                                />
+                            </View>
+
                             {/* Address Search */}
                             <View style={{ position: 'relative', zIndex: 1000 }}>
                                 <View style={regStyles.inputContainer}>
@@ -671,6 +702,24 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                         color="#8E8E93"
                                     />
                                 </TouchableOpacity>
+                            </View>
+
+                            {/* Confirm Password */}
+                            <View style={regStyles.inputContainer}>
+                                <MaterialCommunityIcons
+                                    name="lock-check-outline"
+                                    size={20}
+                                    color="#8E8E93"
+                                    style={regStyles.inputIcon}
+                                />
+                                <TextInput
+                                    placeholder={t('auth.confirm_password')}
+                                    placeholderTextColor="#8E8E93"
+                                    style={regStyles.input}
+                                    secureTextEntry={!showPassword}
+                                    value={confirmPassword}
+                                    onChangeText={setConfirmPassword}
+                                />
                             </View>
 
                             {/* Service Selection */}
