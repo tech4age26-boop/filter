@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const registrationController = require('./controllers/RegistrationController');
+const productServiceController = require('./controllers/ProductServiceController');
 
 const app = express();
 app.use(cors());
@@ -16,12 +17,20 @@ app.use((req, res, next) => {
 
 // Multer Setup
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage }).fields([
+const uploadRegistration = multer({ storage: storage }).fields([
     { name: 'logo', maxCount: 1 },
     { name: 'frontPhoto', maxCount: 1 }
 ]);
 
-app.post('/api/register', upload, registrationController.registerProvider);
+const uploadProductImages = multer({ storage: storage }).array('images', 4);
+
+app.post('/api/register', uploadRegistration, registrationController.registerProvider);
+
+// Product & Service Routes
+app.post('/api/products', uploadProductImages, productServiceController.createItem);
+app.get('/api/products', productServiceController.getItems);
+app.put('/api/products/:id', uploadProductImages, productServiceController.updateItem);
+app.delete('/api/products/:id', productServiceController.deleteItem);
 
 // Health check
 app.get('/', (req, res) => res.send('Filter API is running'));

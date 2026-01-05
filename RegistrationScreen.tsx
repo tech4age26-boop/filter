@@ -32,9 +32,7 @@ interface RegistrationScreenProps {
     onRegister: () => void;
 }
 
-// Production Vercel URL
-const API_BASE_URL = 'https://filter-server.vercel.app';
-// const API_BASE_URL = 'http://10.0.2.2:5000'; // LOCAL DEBUGGING
+import { API_BASE_URL } from './config';
 
 const SERVICES = [
     { id: '1', key: 'car_wash', icon: 'car-wash' },

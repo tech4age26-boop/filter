@@ -1,8 +1,4 @@
-/**
- * Provider Dashboard - Products & Services Screen
- */
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     StyleSheet,
     Text,
@@ -16,14 +12,18 @@ import {
     KeyboardAvoidingView,
     Platform,
     Dimensions,
+    ActivityIndicator,
+    RefreshControl,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useTranslation } from 'react-i18next';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../App';
+import { API_BASE_URL } from '../config';
 
 interface Service {
-    id: string;
+    _id: string;
     name: string;
     price: string;
     duration: string;
@@ -55,17 +55,19 @@ const FormInput = ({
     onChangeText,
     placeholder,
     keyboardType,
-    theme
+    theme,
+    editable = true
 }: any) => (
     <View style={{ marginBottom: 16 }}>
         <FormLabel text={label} required={required} theme={theme} />
         <TextInput
-            style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text, marginBottom: 0 }]}
+            style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text, marginBottom: 0, opacity: editable ? 1 : 0.7 }]}
             placeholder={placeholder}
             placeholderTextColor={theme.inputPlaceholder || '#999'}
             value={value}
             onChangeText={onChangeText}
             keyboardType={keyboardType}
+            editable={editable}
         />
     </View>
 );
@@ -79,6 +81,47 @@ const DetailRow = ({ icon, label, value, theme }: any) => (
         <Text style={[styles.detailValue, { color: theme.text }]}>{value || '-'}</Text>
     </View>
 );
+
+const DetailImage = ({ uri, theme }: { uri: string, theme: any }) => {
+    const [loading, setLoading] = useState(true);
+    return (
+        <View style={styles.detailImageContainer}>
+            <Image
+                source={{ uri }}
+                style={styles.detailImage}
+                resizeMode="cover"
+                onLoadStart={() => setLoading(true)}
+                onLoadEnd={() => setLoading(false)}
+            />
+            {loading && (
+                // <FilterLoader transparent messenger={false} absolute={true} />
+                <ActivityIndicator color="#F4C430" size={20} />
+            )}
+        </View>
+    );
+};
+
+const FilterLoader = ({ label, transparent, messenger = true, absolute = true }: { label?: string, transparent?: boolean, messenger?: boolean, absolute?: boolean }) => {
+    const { theme } = useTheme();
+    const isDark = theme.mode === 'dark';
+    return (
+        <View style={[
+            styles.loaderOverlay,
+            transparent ? styles.loaderTransparent : { backgroundColor: isDark ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.75)' },
+            absolute ? { ...StyleSheet.absoluteFillObject, position: 'absolute' } : { position: 'relative' }
+        ]}>
+            <View style={[styles.loaderContent, { backgroundColor: theme.cardBackground, shadowColor: isDark ? '#000' : '#999' }]}>
+                <View style={styles.logoBadge}>
+                    <Text style={styles.logoText}>FILTER</Text>
+                </View>
+                <ActivityIndicator size="small" color="#F4C430" style={{ marginTop: 15 }} />
+                {messenger && label && (
+                    <Text style={[styles.loaderLabel, {}]}>{label}</Text>
+                )}
+            </View>
+        </View>
+    );
+};
 
 // --- Custom Alert Modal ---
 const CustomAlert = ({ visible, title, message, buttons, onClose, theme }: any) => (
@@ -122,14 +165,14 @@ export function ProductsServicesScreen() {
 
 
     // --- State ---
-    const [items, setItems] = useState<Service[]>([
-        { id: '1', name: 'Oil Change', price: '50', duration: '30', category: 'service', subCategory: 'Oil Change', status: 'active', serviceTypes: ['Oil Change'] },
-        { id: '2', name: 'Brake Pads', price: '120', duration: '60', category: 'product', subCategory: 'Brake Pads', status: 'active', stock: '15', sku: 'PRD-12345' },
-    ]);
-
+    const [items, setItems] = useState<Service[]>([]);
+    const [providerId, setProviderId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState<Service | null>(null);
+    const [originalItem, setOriginalItem] = useState<Partial<Service> | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [activeTab, setActiveTab] = useState<'all' | 'services' | 'products'>('all');
     const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -159,6 +202,59 @@ export function ProductsServicesScreen() {
         if (activeTab === 'products') return item.category === 'product';
         return true;
     });
+
+    useEffect(() => {
+        loadProviderData();
+    }, []);
+
+    const loadProviderData = async () => {
+        try {
+            const data = await AsyncStorage.getItem('user_data');
+            if (data) {
+                const user = JSON.parse(data);
+                const id = user.id || user._id;
+                setProviderId(id);
+                fetchItems(id);
+            }
+        } catch (error) {
+            console.error('Error loading provider data:', error);
+        }
+    };
+
+    const fetchItems = useCallback(async (pId: string | null = providerId) => {
+        const idToUse = pId || providerId;
+        if (!idToUse) return;
+
+        setLoading(true);
+        try {
+            const url = `${API_BASE_URL}/api/products?providerId=${idToUse}`;
+            console.log('Fetching items from:', url);
+            const response = await fetch(url);
+
+            const contentType = response.headers.get('content-type');
+            const responseText = await response.text();
+
+            if (!response.ok) {
+                console.error(`Fetch error! Status: ${response.status}. Body: ${responseText.substring(0, 200)}`);
+                throw new Error(`Server returned ${response.status}`);
+            }
+
+            if (contentType && contentType.includes('application/json')) {
+                const data = JSON.parse(responseText);
+                if (data.success) {
+                    setItems(data.items);
+                }
+            } else {
+                console.error('Expected JSON but received:', contentType, 'Body snippet:', responseText.substring(0, 200));
+                throw new Error('Invalid response format (not JSON)');
+            }
+        } catch (error) {
+            console.error('Fetch Items Error Details:', error);
+            showAlert('Error', 'Failed to load items. Please try again.', [{ text: 'OK', onPress: closeAlert }]);
+        } finally {
+            setLoading(false);
+        }
+    }, [providerId]);
 
     // --- Actions ---
 
@@ -253,35 +349,123 @@ export function ProductsServicesScreen() {
         return true;
     };
 
-    const handleSaveItem = () => {
+    const handleSaveItem = async () => {
         if (!validateForm()) return;
 
-        if (isEditing) {
-            setItems(items.map(item => item.id === newItem.id ? { ...item, ...newItem } as Service : item));
-        } else {
-            const item: Service = {
-                id: Date.now().toString(),
-                name: newItem.name!,
-                price: newItem.price!,
-                duration: newItem.duration || '-',
-                category: newItem.category || 'service',
-                subCategory: newItem.subCategory,
-                images: newItem.images,
-                stock: newItem.stock,
-                sku: newItem.sku,
-                status: newItem.status,
-                serviceTypes: newItem.serviceTypes
-            };
-            setItems([...items, item]);
+        // Change Detection for Updates
+        if (isEditing && originalItem) {
+            const hasChanged =
+                newItem.name !== originalItem.name ||
+                newItem.price !== originalItem.price ||
+                newItem.category !== originalItem.category ||
+                newItem.status !== originalItem.status ||
+                newItem.subCategory !== originalItem.subCategory ||
+                newItem.stock !== originalItem.stock ||
+                newItem.duration !== originalItem.duration ||
+                JSON.stringify(newItem.serviceTypes) !== JSON.stringify(originalItem.serviceTypes) ||
+                JSON.stringify(newItem.images) !== JSON.stringify(originalItem.images);
+
+            if (!hasChanged) {
+                console.log('No changes detected, skipping API call');
+                setShowAddModal(false);
+                setNewItem(initialFormState);
+                setIsEditing(false);
+                setOriginalItem(null);
+                return;
+            }
         }
 
-        setShowAddModal(false);
-        setNewItem(initialFormState);
-        setIsEditing(false);
+        if (!providerId) {
+            showAlert('Error', 'Provider ID not found. Please log in again.', [{ text: 'OK', onPress: closeAlert }]);
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const formData = new FormData();
+            formData.append('providerId', providerId);
+            formData.append('name', newItem.name || '');
+            formData.append('price', newItem.price || '');
+            formData.append('category', newItem.category || 'service');
+            formData.append('status', newItem.status || 'active');
+
+            if (newItem.category === 'product') {
+                formData.append('subCategory', newItem.subCategory || '');
+                formData.append('stock', newItem.stock || '0');
+                formData.append('sku', newItem.sku || '');
+            } else {
+                formData.append('duration', newItem.duration || '0');
+                formData.append('serviceTypes', JSON.stringify(newItem.serviceTypes || []));
+            }
+
+            // Handle images
+            if (newItem.images && newItem.images.length > 0) {
+                const existingImages: string[] = [];
+                newItem.images.forEach((uri: string, index: number) => {
+                    if (uri.startsWith('file://')) {
+                        const filename = uri.split('/').pop();
+                        const match = /\.(\w+)$/.exec(filename || '');
+                        const type = match ? `image/${match[1]}` : `image`;
+                        formData.append('images', {
+                            uri: Platform.OS === 'android' ? uri : uri.replace('file://', ''),
+                            name: filename || `image_${index}.jpg`,
+                            type
+                        } as any);
+                    } else if (uri.startsWith('http')) {
+                        existingImages.push(uri);
+                    }
+                });
+
+                if (isEditing) {
+                    formData.append('existingImages', JSON.stringify(existingImages));
+                }
+            } else if (isEditing) {
+                // If all images were removed
+                formData.append('existingImages', JSON.stringify([]));
+            }
+
+            const url = isEditing ? `${API_BASE_URL}/api/products/${newItem._id}` : `${API_BASE_URL}/api/products`;
+            const method = isEditing ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method,
+                body: formData,
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setShowAddModal(false);
+                setNewItem(initialFormState);
+                setIsEditing(false);
+                setOriginalItem(null);
+                fetchItems();
+                showAlert('Success', `Item ${isEditing ? 'updated' : 'added'} successfully!`, [{ text: 'OK', onPress: closeAlert }]);
+            } else {
+                showAlert('Error', data.message || 'Failed to save item', [{ text: 'OK', onPress: closeAlert }]);
+            }
+        } catch (error) {
+            console.error('Save Item Error:', error);
+            showAlert('Error', 'An unexpected error occurred. Please try again.', [{ text: 'OK', onPress: closeAlert }]);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleEditStart = (item: Service) => {
-        setNewItem({ ...item });
+        const sanitizedItem = {
+            ...item,
+            price: item.price?.toString() || '',
+            duration: item.duration?.toString() || '',
+            stock: item.stock?.toString() || '',
+            serviceTypes: item.serviceTypes || []
+        };
+        setNewItem(sanitizedItem);
+        setOriginalItem(sanitizedItem); // Assuming originalItem state is declared elsewhere
         setIsEditing(true);
         setShowAddModal(true);
     };
@@ -296,9 +480,25 @@ export function ProductsServicesScreen() {
                 {
                     text: 'Delete',
                     style: 'destructive',
-                    onPress: () => {
-                        setItems(items.filter(i => i.id !== id));
-                        closeAlert();
+                    onPress: async () => {
+                        setIsSaving(true);
+                        try {
+                            const response = await fetch(`${API_BASE_URL}/api/products/${id}`, {
+                                method: 'DELETE',
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                closeAlert();
+                                fetchItems();
+                            } else {
+                                showAlert('Error', data.message || 'Failed to delete item', [{ text: 'OK', onPress: closeAlert }]);
+                            }
+                        } catch (error) {
+                            console.error('Delete Item Error:', error);
+                            showAlert('Error', 'Connection failed. Please check your internet.', [{ text: 'OK', onPress: closeAlert }]);
+                        } finally {
+                            setIsSaving(false);
+                        }
                     }
                 }
             ]);
@@ -335,7 +535,11 @@ export function ProductsServicesScreen() {
             {/* Header and Tabs */}
             <View style={[styles.header, { backgroundColor: theme.cardBackground }]}>
                 <Text style={[styles.title, { color: theme.text }]}>{t('products.title')}</Text>
-                <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
+                <TouchableOpacity
+                    style={[styles.addButton, (isSaving || loading) && { opacity: 0.5 }]}
+                    onPress={openAddModal}
+                    disabled={isSaving || loading}
+                >
                     <MaterialCommunityIcons name="plus" size={20} color="#1C1C1E" />
                 </TouchableOpacity>
             </View>
@@ -348,20 +552,37 @@ export function ProductsServicesScreen() {
                 ].map(tab => (
                     <TouchableOpacity
                         key={tab.key}
-                        style={[styles.tab, activeTab === tab.key && styles.activeTab]}
-                        onPress={() => setActiveTab(tab.key as any)}>
+                        style={[styles.tab, activeTab === tab.key && styles.activeTab, (isSaving || loading) && { opacity: 0.7 }]}
+                        onPress={() => setActiveTab(tab.key as any)}
+                        disabled={isSaving || loading}
+                    >
                         <Text style={[styles.tabText, activeTab === tab.key && styles.activeTabText, activeTab !== tab.key && { color: theme.subText }]}>
-                            {tab.label} ({tab.key === 'all' ? items.length : items.filter(i => i.category === (tab.key === 'services' ? 'service' : 'product')).length})
+                            {tab.label} ({tab.key === 'all' ? items.length : items.filter((i: Service) => i.category === (tab.key === 'services' ? 'service' : 'product')).length})
                         </Text>
                     </TouchableOpacity>
                 ))}
             </View>
 
             {/* List */}
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                {filteredItems.map((item) => (
+            <ScrollView
+                style={styles.content}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={loading} onRefresh={fetchItems} tintColor={theme.tint} />
+                }>
+                {loading && items.length === 0 ? (
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 100 }}>
+                        {/* <FilterLoader transparent messenger={false} absolute={false} /> */}
+                        <Text style={{ color: theme.subText, marginTop: 20 }}>Loading items...</Text>
+                    </View>
+                ) : items.length === 0 ? (
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 }}>
+                        <MaterialCommunityIcons name="package-variant-closed" size={50} color={theme.border} />
+                        <Text style={{ color: theme.subText, marginTop: 10 }}>No items found</Text>
+                    </View>
+                ) : filteredItems.map((item) => (
                     <TouchableOpacity
-                        key={item.id}
+                        key={item._id}
                         style={[styles.itemCard, { backgroundColor: theme.cardBackground, opacity: item.status === 'inactive' ? 0.6 : 1 }]}
                         onPress={() => openDetailModal(item)}
                         activeOpacity={0.7}
@@ -390,11 +611,19 @@ export function ProductsServicesScreen() {
                             <Text style={styles.itemPrice}>{item.price} SAR</Text>
                         </View>
                         <View style={[styles.itemActions, { borderTopColor: theme.border }]}>
-                            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: theme.background }]} onPress={() => handleEditStart(item)}>
+                            <TouchableOpacity
+                                style={[styles.actionBtn, { backgroundColor: theme.background }, (isSaving || loading) && { opacity: 0.5 }]}
+                                onPress={() => handleEditStart(item)}
+                                disabled={isSaving || loading}
+                            >
                                 <MaterialCommunityIcons name="pencil" size={18} color="#007AFF" />
                                 <Text style={styles.actionBtnText}>Edit</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn, { backgroundColor: theme.background }]} onPress={() => handleDelete(item.id)}>
+                            <TouchableOpacity
+                                style={[styles.actionBtn, styles.deleteBtn, { backgroundColor: theme.background }, (isSaving || loading) && { opacity: 0.5 }]}
+                                onPress={() => handleDelete(item._id)}
+                                disabled={isSaving || loading}
+                            >
                                 <MaterialCommunityIcons name="delete" size={18} color="#FF3B30" />
                                 <Text style={[styles.actionBtnText, styles.deleteBtnText]}>Delete</Text>
                             </TouchableOpacity>
@@ -405,13 +634,21 @@ export function ProductsServicesScreen() {
             </ScrollView>
 
             {/* Add/Edit Modal */}
-            <Modal statusBarTranslucent visible={showAddModal} transparent={true} animationType="slide" onRequestClose={() => setShowAddModal(false)}>
+            <Modal statusBarTranslucent visible={showAddModal} transparent={true} animationType="slide" onRequestClose={() => {
+                if (!isSaving) {
+                    setShowAddModal(false);
+                    setOriginalItem(null);
+                }
+            }}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
                     <View style={[styles.modalContent, { backgroundColor: theme.cardBackground }]}>
                         <View style={styles.modalHeader}>
                             <Text style={[styles.modalTitle, { color: theme.text }]}>{isEditing ? 'Edit' : 'Add'} {newItem.category === 'service' ? 'Service' : 'Product'}</Text>
-                            <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                                <MaterialCommunityIcons name="close" size={24} color={theme.text} />
+                            <TouchableOpacity onPress={() => {
+                                setShowAddModal(false);
+                                setOriginalItem(null);
+                            }} disabled={isSaving}>
+                                <MaterialCommunityIcons name="close" size={24} color={isSaving ? theme.border : theme.text} />
                             </TouchableOpacity>
                         </View>
 
@@ -460,15 +697,25 @@ export function ProductsServicesScreen() {
                                 </ScrollView>
                             </View>
 
-                            <FormInput label="Product Name" required value={newItem.name} onChangeText={(text: string) => setNewItem({ ...newItem, name: text })} placeholder="Name" theme={theme} />
+                            <FormInput
+                                label="Product Name"
+                                required
+                                value={newItem.name}
+                                onChangeText={(text: string) => setNewItem({ ...newItem, name: text })}
+                                placeholder="Name"
+                                theme={theme}
+                                editable={!isSaving}
+                            />
 
                             {/* Category - Product Only */}
                             {newItem.category === 'product' && (
                                 <View style={{ marginBottom: 16 }}>
                                     <FormLabel text="Category" required theme={theme} />
                                     <TouchableOpacity
-                                        style={[styles.dropdownSelector, { backgroundColor: theme.background, borderColor: theme.border }]}
-                                        onPress={() => setIsCategoryOpen(!isCategoryOpen)}>
+                                        style={[styles.dropdownSelector, { backgroundColor: theme.background, borderColor: theme.border }, isSaving && { opacity: 0.5 }]}
+                                        onPress={() => !isSaving && setIsCategoryOpen(!isCategoryOpen)}
+                                        disabled={isSaving}
+                                    >
                                         <Text style={{ color: newItem.subCategory ? theme.text : theme.subText }}>{newItem.subCategory || 'Select Category'}</Text>
                                         <MaterialCommunityIcons name={isCategoryOpen ? "chevron-up" : "chevron-down"} size={20} color={theme.subText} />
                                     </TouchableOpacity>
@@ -499,8 +746,10 @@ export function ProductsServicesScreen() {
                                             return (
                                                 <TouchableOpacity
                                                     key={type}
-                                                    style={[styles.chip, { backgroundColor: isSelected ? '#1C1C1E' : theme.background, borderColor: theme.border }]}
-                                                    onPress={() => toggleServiceType(type)}>
+                                                    style={[styles.chip, { backgroundColor: isSelected ? '#1C1C1E' : theme.background, borderColor: theme.border }, isSaving && { opacity: 0.5 }]}
+                                                    onPress={() => !isSaving && toggleServiceType(type)}
+                                                    disabled={isSaving}
+                                                >
                                                     <Text style={[styles.chipText, { color: isSelected ? '#FFFFFF' : theme.text }]}>{type}</Text>
                                                 </TouchableOpacity>
                                             )
@@ -511,13 +760,13 @@ export function ProductsServicesScreen() {
 
                             <View style={{ flexDirection: 'row', gap: 12 }}>
                                 <View style={{ flex: 1 }}>
-                                    <FormInput label="Price (SAR)" required value={newItem.price} onChangeText={(text: string) => setNewItem({ ...newItem, price: text })} placeholder="0.00" keyboardType="numeric" theme={theme} />
+                                    <FormInput label="Price (SAR)" required value={newItem.price} onChangeText={(text: string) => setNewItem({ ...newItem, price: text })} placeholder="0.00" keyboardType="numeric" theme={theme} editable={!isSaving} />
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     {newItem.category === 'product' ? (
-                                        <FormInput label="Stock Quantity" required value={newItem.stock} onChangeText={(text: string) => setNewItem({ ...newItem, stock: text })} placeholder="0" keyboardType="numeric" theme={theme} />
+                                        <FormInput label="Stock Quantity" required value={newItem.stock} onChangeText={(text: string) => setNewItem({ ...newItem, stock: text })} placeholder="0" keyboardType="numeric" theme={theme} editable={!isSaving} />
                                     ) : (
-                                        <FormInput label="Duration (min)" required value={newItem.duration} onChangeText={(text: string) => setNewItem({ ...newItem, duration: text })} placeholder="30" keyboardType="numeric" theme={theme} />
+                                        <FormInput label="Duration (min)" required value={newItem.duration} onChangeText={(text: string) => setNewItem({ ...newItem, duration: text })} placeholder="30" keyboardType="numeric" theme={theme} editable={!isSaving} />
                                     )}
                                 </View>
                             </View>
@@ -527,23 +776,31 @@ export function ProductsServicesScreen() {
                                     <FormLabel text="SKU / Product Code" required theme={theme} />
                                     <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                                         <TextInput
-                                            style={[styles.input, { flex: 1, backgroundColor: theme.background, borderColor: theme.border, color: theme.text, marginBottom: 0 }]}
+                                            style={[styles.input, { flex: 1, backgroundColor: theme.background, borderColor: theme.border, color: theme.text, marginBottom: 0, opacity: isSaving ? 0.7 : 1 }]}
                                             placeholder="Enter or Generate"
                                             placeholderTextColor={theme.subText}
                                             value={newItem.sku}
                                             onChangeText={(text) => setNewItem({ ...newItem, sku: text })}
+                                            editable={!isSaving}
                                         />
                                         <TouchableOpacity
-                                            style={[styles.saveButton, { marginTop: 0, justifyContent: 'center', paddingHorizontal: 15, backgroundColor: '#F4C430' }]}
-                                            onPress={generateSKU}>
+                                            style={[styles.saveButton, { marginTop: 0, justifyContent: 'center', paddingHorizontal: 15, backgroundColor: '#F4C430' }, isSaving && { opacity: 0.5 }]}
+                                            onPress={generateSKU}
+                                            disabled={isSaving}
+                                        >
                                             <Text style={[styles.saveButtonText, { color: '#1C1C1E', fontSize: 13 }]}>Generate</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </>
                             )}
 
-                            <TouchableOpacity style={styles.saveButton} onPress={handleSaveItem}>
-                                <Text style={styles.saveButtonText}>{isEditing ? 'Save Changes' : 'Add Item'}</Text>
+                            <TouchableOpacity
+                                style={[styles.saveButton, isSaving && { opacity: 0.7 }]}
+                                onPress={handleSaveItem}
+                                disabled={isSaving}>
+                                <Text style={styles.saveButtonText}>
+                                    {isSaving ? 'Saving...' : (isEditing ? 'Save Changes' : 'Add Item')}
+                                </Text>
                             </TouchableOpacity>
                         </ScrollView>
                     </View>
@@ -575,7 +832,7 @@ export function ProductsServicesScreen() {
                                 {selectedItem.images && selectedItem.images.length > 0 ? (
                                     <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={styles.detailImageScroll}>
                                         {selectedItem.images.map((uri, i) => (
-                                            <Image key={i} source={{ uri }} style={styles.detailImage} resizeMode="cover" />
+                                            <DetailImage key={i} uri={uri} theme={theme} />
                                         ))}
                                     </ScrollView>
                                 ) : (
@@ -618,7 +875,7 @@ export function ProductsServicesScreen() {
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={[styles.actionBtn, styles.deleteBtn, { backgroundColor: theme.background }]}
-                                    onPress={() => handleDelete(selectedItem.id, true)}>
+                                    onPress={() => handleDelete(selectedItem._id, true)}>
                                     <MaterialCommunityIcons name="delete" size={20} color="#FF3B30" />
                                     <Text style={[styles.actionBtnText, styles.deleteBtnText]}>Delete</Text>
                                 </TouchableOpacity>
@@ -637,6 +894,12 @@ export function ProductsServicesScreen() {
                 onClose={closeAlert}
                 theme={theme}
             />
+            {/* Global Loading Overlay */}
+            {isSaving && (
+                <Modal transparent visible={true} animationType="fade" statusBarTranslucent>
+                    <FilterLoader label="Processing..." />
+                </Modal>
+            )}
         </View>
     );
 }
@@ -697,9 +960,44 @@ const styles = StyleSheet.create({
     statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start' },
     statusText: { fontSize: 12, fontWeight: 'bold' },
     detailImageScroll: { marginBottom: 20, height: 200, maxWidth: width - 88 },
-    detailImage: { width: width - 88, height: 200, borderRadius: 12, marginRight: 0 },
+    detailImageContainer: { width: width - 88, height: 200, borderRadius: 12, overflow: 'hidden', position: 'relative' },
+    detailImage: { width: width - 88, height: 200 },
     detailImagePlaceholder: { height: 150, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
     detailSection: { marginBottom: 20 },
+    // Loader Styles
+    loaderOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', zIndex: 9999 },
+    loaderGlass: { backgroundColor: 'rgba(255, 255, 255, 0.4)' },
+    loaderTransparent: { backgroundColor: 'rgba(0,0,0,0.05)' },
+    loaderContent: {
+        padding: 30,
+        borderRadius: 24,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10
+    },
+    logoBadge: {
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    logoText: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#F4C430',
+        letterSpacing: 1.5,
+    },
+    loaderLabel: {
+        marginTop: 12, fontWeight: '600', fontSize: 14, color: '#F4C430',
+    },
     detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
     detailLabel: { fontSize: 14, fontWeight: '600' },
     detailValue: { fontSize: 14, fontWeight: '500', flex: 1, textAlign: 'right' },
