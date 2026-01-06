@@ -1,6 +1,6 @@
-const __DEV__ = false;
+const __DEV__ = true;
 export const API_BASE_URL = __DEV__
-    ? 'http://192.168.1.7:5000'
+    ? 'http://192.168.1.4:5000'
     : 'https://filter-server.vercel.app';
 
 export const CONFIG = {

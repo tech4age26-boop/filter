@@ -34,10 +34,13 @@ interface Service {
     sku?: string;
     status?: 'active' | 'inactive';
     serviceTypes?: string[];
+    uom?: string;
+    purchasePrice?: string;
 }
 
 const SERVICE_CATEGORIES = ['Diagnostics', 'Quick Service', 'Tuning', 'Detailing', 'Oil Change', 'Tires & Alignment', 'Engine', 'Electrical'];
 const PRODUCT_CATEGORIES = ['Brake Pads', 'Filters', 'Fluids', 'Tires', 'Accessories', 'Engine Parts', 'Tools'];
+const UOM_OPTIONS = ['Piece', 'Kg', 'Liter', 'Box', 'Packet', 'Set', 'Unit', 'Dozen', 'Pair'];
 const { width } = Dimensions.get('window');
 
 // --- Reusable Components ---
@@ -176,6 +179,7 @@ export function ProductsServicesScreen() {
     const [isEditing, setIsEditing] = useState(false);
     const [activeTab, setActiveTab] = useState<'all' | 'services' | 'products'>('all');
     const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+    const [isUomOpen, setIsUomOpen] = useState(false);
 
     // Custom Alert State
     const [alertVisible, setAlertVisible] = useState(false);
@@ -191,7 +195,9 @@ export function ProductsServicesScreen() {
         stock: '',
         sku: '',
         status: 'active',
-        serviceTypes: []
+        serviceTypes: [],
+        uom: '',
+        purchasePrice: ''
     };
 
     const [newItem, setNewItem] = useState<Partial<Service>>(initialFormState);
@@ -325,6 +331,7 @@ export function ProductsServicesScreen() {
             } else if (isNaN(Number(newItem.stock)) || !Number.isInteger(Number(newItem.stock)) || Number(newItem.stock) < 0) {
                 invalidFields.push('Stock Quantity must be a valid integer');
             }
+            if (!newItem.uom) missingFields.push('Unit of Measurement (UOM)');
             if (!newItem.sku) missingFields.push('SKU');
         } else {
             if (!newItem.serviceTypes || newItem.serviceTypes.length === 0) missingFields.push('Service Type');
@@ -361,6 +368,8 @@ export function ProductsServicesScreen() {
                 newItem.status !== originalItem.status ||
                 newItem.subCategory !== originalItem.subCategory ||
                 newItem.stock !== originalItem.stock ||
+                newItem.uom !== originalItem.uom ||
+                newItem.purchasePrice !== originalItem.purchasePrice ||
                 newItem.duration !== originalItem.duration ||
                 JSON.stringify(newItem.serviceTypes) !== JSON.stringify(originalItem.serviceTypes) ||
                 JSON.stringify(newItem.images) !== JSON.stringify(originalItem.images);
@@ -393,6 +402,8 @@ export function ProductsServicesScreen() {
                 formData.append('subCategory', newItem.subCategory || '');
                 formData.append('stock', newItem.stock || '0');
                 formData.append('sku', newItem.sku || '');
+                formData.append('uom', newItem.uom || '');
+                formData.append('purchasePrice', newItem.purchasePrice || '0');
             } else {
                 formData.append('duration', newItem.duration || '0');
                 formData.append('serviceTypes', JSON.stringify(newItem.serviceTypes || []));
@@ -462,7 +473,9 @@ export function ProductsServicesScreen() {
             price: item.price?.toString() || '',
             duration: item.duration?.toString() || '',
             stock: item.stock?.toString() || '',
-            serviceTypes: item.serviceTypes || []
+            serviceTypes: item.serviceTypes || [],
+            uom: item.uom || '',
+            purchasePrice: item.purchasePrice?.toString() || ''
         };
         setNewItem(sanitizedItem);
         setOriginalItem(sanitizedItem); // Assuming originalItem state is declared elsewhere
@@ -599,16 +612,16 @@ export function ProductsServicesScreen() {
                                         <Text style={[styles.itemName, { color: theme.text }]}>{item.name}</Text>
                                         {item.status === 'inactive' && <Text style={{ fontSize: 10, color: '#FF3B30', fontWeight: 'bold' }}>INACTIVE</Text>}
                                     </View>
-                                    <Text style={styles.itemDuration}>
+                                    <Text style={[styles.itemDuration, { width: "90%", }]}>
                                         {item.category === 'service'
                                             ? `${item.serviceTypes?.slice(0, 2).join(', ') || item.subCategory}`
                                             : item.subCategory
-                                        } • {item.category === 'service' ? `${item.duration} min` : `Stock: ${item.stock || '-'}`}
+                                        } • {item.category === 'service' ? `${item.duration} min` : `Stock: ${item.stock || '-'} ${item.uom || ''}`}
                                         {item.category === 'service' && (item.serviceTypes?.length || 0) > 2 && ` +${(item.serviceTypes?.length || 0) - 2}`}
                                     </Text>
                                 </View>
                             </View>
-                            <Text style={styles.itemPrice}>{item.price} SAR</Text>
+                            <Text style={[styles.itemPrice, { width: "28%", textAlign: 'right' }]}>{item.price} SAR</Text>
                         </View>
                         <View style={[styles.itemActions, { borderTopColor: theme.border }]}>
                             <TouchableOpacity
@@ -759,16 +772,54 @@ export function ProductsServicesScreen() {
                             )}
 
                             <View style={{ flexDirection: 'row', gap: 12 }}>
+                                {newItem.category === 'product' && (
+                                    <View style={{ flex: 1 }}>
+                                        <FormInput label="Purchase Price" value={newItem.purchasePrice} onChangeText={(text: string) => setNewItem({ ...newItem, purchasePrice: text })} placeholder="0.00" keyboardType="numeric" theme={theme} editable={!isSaving} />
+                                    </View>
+                                )}
                                 <View style={{ flex: 1 }}>
-                                    <FormInput label="Price (SAR)" required value={newItem.price} onChangeText={(text: string) => setNewItem({ ...newItem, price: text })} placeholder="0.00" keyboardType="numeric" theme={theme} editable={!isSaving} />
+                                    <FormInput label="Sell Price (SAR)" required value={newItem.price} onChangeText={(text: string) => setNewItem({ ...newItem, price: text })} placeholder="0.00" keyboardType="numeric" theme={theme} editable={!isSaving} />
                                 </View>
-                                <View style={{ flex: 1 }}>
-                                    {newItem.category === 'product' ? (
-                                        <FormInput label="Stock Quantity" required value={newItem.stock} onChangeText={(text: string) => setNewItem({ ...newItem, stock: text })} placeholder="0" keyboardType="numeric" theme={theme} editable={!isSaving} />
-                                    ) : (
+                            </View>
+
+                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                                {newItem.category === 'product' ? (
+                                    <>
+                                        <View style={{ flex: 1 }}>
+                                            <FormInput label="Stock Qty" required value={newItem.stock} onChangeText={(text: string) => setNewItem({ ...newItem, stock: text })} placeholder="0" keyboardType="numeric" theme={theme} editable={!isSaving} />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <FormLabel text="UOM" required theme={theme} />
+                                            <TouchableOpacity
+                                                style={[styles.dropdownSelector, { backgroundColor: theme.background, borderColor: theme.border, height: 50 }, isSaving && { opacity: 0.5 }]}
+                                                onPress={() => !isSaving && setIsUomOpen(!isUomOpen)}
+                                                disabled={isSaving}
+                                            >
+                                                <Text style={{ color: newItem.uom ? theme.text : theme.subText }}>{newItem.uom || 'Select'}</Text>
+                                                <MaterialCommunityIcons name={isUomOpen ? "chevron-up" : "chevron-down"} size={20} color={theme.subText} />
+                                            </TouchableOpacity>
+                                            {isUomOpen && (
+                                                <View style={[styles.dropdownList, { backgroundColor: theme.background, borderColor: theme.border, position: 'absolute', top: 75, width: '100%', zIndex: 1000 }]}>
+                                                    <ScrollView style={{ maxHeight: 150 }} nestedScrollEnabled>
+                                                        {UOM_OPTIONS.map((opt) => (
+                                                            <TouchableOpacity
+                                                                key={opt}
+                                                                style={[styles.dropdownItem, { borderBottomColor: theme.border }]}
+                                                                onPress={() => { setNewItem({ ...newItem, uom: opt }); setIsUomOpen(false); }}>
+                                                                <Text style={{ color: theme.text }}>{opt}</Text>
+                                                                {newItem.uom === opt && <MaterialCommunityIcons name="check" size={16} color="#F4C430" />}
+                                                            </TouchableOpacity>
+                                                        ))}
+                                                    </ScrollView>
+                                                </View>
+                                            )}
+                                        </View>
+                                    </>
+                                ) : (
+                                    <View style={{ flex: 1 }}>
                                         <FormInput label="Duration (min)" required value={newItem.duration} onChangeText={(text: string) => setNewItem({ ...newItem, duration: text })} placeholder="30" keyboardType="numeric" theme={theme} editable={!isSaving} />
-                                    )}
-                                </View>
+                                    </View>
+                                )}
                             </View>
 
                             {newItem.category === 'product' && (
@@ -850,7 +901,8 @@ export function ProductsServicesScreen() {
                                         <>
                                             <DetailRow icon="shape-outline" label="Type" value={selectedItem.subCategory} theme={theme} />
                                             <DetailRow icon="barcode" label="SKU" value={selectedItem.sku} theme={theme} />
-                                            <DetailRow icon="cube-outline" label="Stock" value={selectedItem.stock} theme={theme} />
+                                            <DetailRow icon="cube-outline" label="Stock" value={`${selectedItem.stock} ${selectedItem.uom || ''}`} theme={theme} />
+                                            <DetailRow icon="cash-multiple" label="Purchase Price" value={`${selectedItem.purchasePrice || '0'} SAR`} theme={theme} />
                                         </>
                                     ) : (
                                         <>

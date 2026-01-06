@@ -39,7 +39,8 @@ const createItem = async (req, res) => {
         const {
             providerId, name, price, category,
             subCategory, stock, sku,
-            duration, serviceTypes, status
+            duration, serviceTypes, status,
+            uom, purchasePrice
         } = req.body;
 
         if (!providerId || !name || !price || !['service', 'product'].includes(category)) {
@@ -63,6 +64,8 @@ const createItem = async (req, res) => {
             subCategory: subCategory || null,
             stock: category === 'product' ? parseInt(stock || 0) : null,
             sku: sku || null,
+            uom: category === 'product' ? uom : null,
+            purchasePrice: category === 'product' ? parseFloat(purchasePrice || 0) : null,
             duration: category === 'service' ? parseInt(duration || 0) : null,
             serviceTypes:
                 category === 'service'
@@ -131,6 +134,7 @@ const updateItem = async (req, res) => {
         const collection = await getCollection();
 
         if (updates.price) updates.price = parseFloat(updates.price);
+        if (updates.purchasePrice) updates.purchasePrice = parseFloat(updates.purchasePrice);
         if (updates.stock) updates.stock = parseInt(updates.stock);
         if (updates.duration) updates.duration = parseInt(updates.duration);
 

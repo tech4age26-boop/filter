@@ -68,6 +68,7 @@ const registerProvider = async (req, res) => {
         if (type === 'workshop') {
             providerData.workshopName = workshopName;
             providerData.ownerName = ownerName;
+            providerData.mobileNumber = mobileNumber; // Added mobile
             providerData.crNumber = crNumber;
             providerData.vatNumber = vatNumber;
             providerData.address = req.body.address;
@@ -89,11 +90,13 @@ const registerProvider = async (req, res) => {
                     longitude: parseFloat(longitude)
                 };
             }
-            if (password) {
-                const salt = await bcrypt.genSalt(10);
-                providerData.password = await bcrypt.hash(password, salt);
-            }
             providerData.logoUrl = logoUrl;
+        }
+
+        // Shared hashing for both types
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            providerData.password = await bcrypt.hash(password, salt);
         }
 
         // Insert directly using MongoDB Driver

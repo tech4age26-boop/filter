@@ -23,6 +23,8 @@ const ProductServiceSchema = new mongoose.Schema({
     subCategory: String,
     stock: Number,
     sku: String,
+    uom: String,
+    purchasePrice: Number,
 
     // Service specific fields
     duration: Number, // in minutes
