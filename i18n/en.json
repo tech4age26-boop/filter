@@ -25,6 +25,7 @@
         "provider_question": "Are you a individual or company?",
         "location": "Location",
         "customer": "Customer",
+        "service_provider": "Service Provider",
         "eta": "ETA",
         "scheduled": "Scheduled"
     },
@@ -38,7 +39,8 @@
         "confirm_password": "Confirm Password",
         "forgot_password": "Forgot Password?",
         "dont_have_account": "Don't have an account?",
-        "already_have_account": "Already have an account?"
+        "already_have_account": "Already have an account?",
+        "signup_customer": "Sign Up as Customer"
     },
     "registration": {
         "type_workshop": "Workshop",

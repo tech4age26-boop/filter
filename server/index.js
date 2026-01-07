@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const registrationController = require('./controllers/RegistrationController');
+const customerController = require('./controllers/CustomerController');
 
 const app = express();
 app.use(cors());
@@ -22,6 +23,7 @@ const upload = multer({ storage: storage }).fields([
 ]);
 
 app.post('/api/register', upload, registrationController.registerProvider);
+app.post('/api/register-customer', customerController.registerCustomer);
 
 // Health check
 app.get('/', (req, res) => res.send('Filter API is running'));

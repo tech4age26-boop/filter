@@ -25,6 +25,7 @@
         "provider_question": "هل أنت فرد أم شركة؟",
         "location": "الموقع",
         "customer": "العميل",
+        "service_provider": "مقدم خدمة",
         "eta": "الوقت المتوقع",
         "scheduled": "الموعد"
     },
@@ -38,7 +39,8 @@
         "confirm_password": "تأكيد كلمة المرور",
         "forgot_password": "نسيت كلمة المرور؟",
         "dont_have_account": "ليس لديك حساب؟",
-        "already_have_account": "لديك حساب بالفعل؟"
+        "already_have_account": "لديك حساب بالفعل؟",
+        "signup_customer": "تسجيل كعميل"
     },
     "registration": {
         "type_workshop": "ورشة عمل",

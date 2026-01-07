@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RegistrationScreen } from './RegistrationScreen';
+import { CustomerRegistrationScreen } from './CustomerRegistrationScreen';
 import { ProviderDashboard } from './ProviderDashboard';
 import { TechnicianDashboard } from './TechnicianDashboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -33,6 +34,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [showRegistration, setShowRegistration] = useState(false);
+    const [showCustomerRegistration, setShowCustomerRegistration] = useState(false);
     const [dashboardType, setDashboardType] = useState<'provider' | 'technician' | null>(null);
     const insets = useSafeAreaInsets();
     const { t } = useTranslation();
@@ -65,6 +67,13 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     if (showRegistration) {
         return <RegistrationScreen
             onBack={() => setShowRegistration(false)}
+            onRegister={handleRegisterSuccess}
+        />;
+    }
+
+    if (showCustomerRegistration) {
+        return <CustomerRegistrationScreen
+            onBack={() => setShowCustomerRegistration(false)}
             onRegister={handleRegisterSuccess}
         />;
     }
@@ -103,7 +112,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                                     authStyles.tabText,
                                     isLogin && authStyles.activeTabText,
                                 ]}>
-                                {t('common.login')}
+                                {t('common.customer')}
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -114,7 +123,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                                     authStyles.tabText,
                                     !isLogin && authStyles.activeTabText,
                                 ]}>
-                                {t('common.register')}
+                                {t('common.service_provider')}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -138,7 +147,6 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                             />
                         </View>
 
-                        {/* Phone Number (Sign Up Only) */}
                         {!isLogin && (
                             <View style={authStyles.inputContainer}>
                                 <MaterialCommunityIcons
@@ -231,6 +239,19 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                             />
                         </TouchableOpacity>
 
+                        {/* Customer Signup Button */}
+                        {isLogin && (
+                            <TouchableOpacity
+                                style={authStyles.customerSignupButton}
+                                onPress={() => {
+                                    console.log('Customer Signup Button Pressed');
+                                    setShowCustomerRegistration(true);
+                                }}>
+                                <MaterialCommunityIcons name="account-plus" size={20} color="#F4C430" style={{ marginRight: 8 }} />
+                                <Text style={authStyles.customerSignupText}>{t('auth.signup_customer')}</Text>
+                            </TouchableOpacity>
+                        )}
+
                         {/* Technician Link */}
                         <TouchableOpacity
                             style={authStyles.technicianLink}
@@ -289,9 +310,21 @@ const authStyles = StyleSheet.create({
     },
     tagline: {
         fontSize: 13,
-        color: '#8E8E93',
+        color: '#1C1C1E',
+        fontWeight: 'bold',
+    },
+    customerSignupButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    customerSignupText: {
+        fontSize: 16,
         fontWeight: '600',
-        letterSpacing: 1.5,
+        color: '#F4C430',
+        textDecorationLine: 'underline',
     },
     tabContainer: {
         flexDirection: 'row',
