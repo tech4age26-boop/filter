@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, ScrollView, Switch, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useTheme, useAuth } from '../App';
 import { SettingsItem } from '../components/CustomerComponents';
 
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../Context/AuthContext';
+import { useTheme } from '../Theme/GlobalTheme';
 
 export function CustomerSettingsScreen() {
     const { theme, toggleTheme, isDarkMode } = useTheme();

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, ImageSourcePropType } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useTheme } from '../App';
+import { useTheme } from '../Theme/GlobalTheme';
 
 export function WorkshopCard({ image, title, rating, distance, location, tags, isSponsored, isNew, fullWidth }: any) {
     const { theme } = useTheme();

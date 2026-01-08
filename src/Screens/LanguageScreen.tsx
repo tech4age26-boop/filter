@@ -46,7 +46,7 @@ export function LanguageScreen({ onSelect }: LanguageScreenProps) {
 
     return (
         <ImageBackground
-            source={require('../assets/car_workshop.png')}
+            source={require('../../assets/car_workshop.png')}
             style={styles.container}
             blurRadius={2}
         >

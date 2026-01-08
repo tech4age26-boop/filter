@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useTheme } from '../App';
 import { WorkshopCard } from '../components/CustomerComponents';
+import { useTheme } from '../Theme/GlobalTheme';
 
 export function CustomerFindScreen() {
     const { theme } = useTheme();
@@ -34,7 +34,7 @@ export function CustomerFindScreen() {
 
             <View style={styles.listPadding}>
                 <WorkshopCard
-                    image={require('../assets/car_workshop.png')}
+                    image={require('../../assets/car_workshop.png')}
                     title="AutoFix Pro Center"
                     rating="4.8"
                     distance="2.5 mi"
@@ -44,7 +44,7 @@ export function CustomerFindScreen() {
                     fullWidth={true}
                 />
                 <WorkshopCard
-                    image={require('../assets/tires_wheel.png')}
+                    image={require('../../assets/tires_wheel.png')}
                     title="Speedy Repair Hub"
                     rating="4.6"
                     distance="4.2 mi"
@@ -53,7 +53,7 @@ export function CustomerFindScreen() {
                     fullWidth={true}
                 />
                 <WorkshopCard
-                    image={require('../assets/car_workshop.png')}
+                    image={require('../../assets/car_workshop.png')}
                     title="Premium Auto Care"
                     rating="5.0"
                     distance="5.0 mi"

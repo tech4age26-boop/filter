@@ -2,16 +2,17 @@ import React, { useState, useEffect } from 'react';
 // Force refresh
 import { View, Text, ScrollView, Image, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useTheme } from '../App';
 import { WorkshopCard, FavoriteCard } from '../components/CustomerComponents';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useNavigation } from '@react-navigation/native';
 
 import { useTranslation } from 'react-i18next';
+import { API_BASE_URL } from '../Config/config';
+import { useTheme } from '../Theme/GlobalTheme';
 
 // Production Vercel URL
-const API_BASE_URL = 'https://filter-server.vercel.app';
 
 export function CustomerHomeScreen() {
     const { theme } = useTheme();
@@ -53,129 +54,131 @@ export function CustomerHomeScreen() {
     }, []);
 
     return (
-        <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            style={{ flex: 1, backgroundColor: theme.background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top']}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 100 }}
+                style={{ flex: 1, backgroundColor: theme.background }}>
 
-            {/* Header Section */}
-            <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                    <View style={styles.avatarContainer}>
-                        <Image
-                            source={require('../assets/user_avatar.png')}
-                            style={[styles.avatar, { borderColor: theme.cardBackground }]}
-                        />
-                        <View style={[styles.onlineBadge, { borderColor: theme.cardBackground }]} />
+                {/* Header Section */}
+                <View style={styles.header}>
+                    <View style={styles.headerLeft}>
+                        <View style={styles.avatarContainer}>
+                            <Image
+                                source={require('../../assets/user_avatar.png')}
+                                style={[styles.avatar, { borderColor: theme.cardBackground }]}
+                            />
+                            <View style={[styles.onlineBadge, { borderColor: theme.cardBackground }]} />
+                        </View>
+                        <View style={styles.welcomeTextContainer}>
+                            <Text style={styles.welcomeLabel}>{t('home.welcome_back').toUpperCase()}</Text>
+                            <Text style={[styles.userName, { color: theme.text }]}>{userName}</Text>
+                        </View>
                     </View>
-                    <View style={styles.welcomeTextContainer}>
-                        <Text style={styles.welcomeLabel}>{t('home.welcome_back').toUpperCase()}</Text>
-                        <Text style={[styles.userName, { color: theme.text }]}>{userName}</Text>
-                    </View>
-                </View>
-                <TouchableOpacity
-                    style={[styles.bellButton, { backgroundColor: theme.cardBackground }]}
-                    onPress={() => navigation.navigate('CustomerMenu')}
-                >
-                    <MaterialCommunityIcons name="menu" size={24} color={theme.text} />
-                </TouchableOpacity>
-            </View>
-
-            {/* Search Bar */}
-            <View style={styles.searchContainer}>
-                <View style={[styles.searchBar, { backgroundColor: theme.inputBackground }]}>
-                    <Text style={styles.searchIcon}>🔍</Text>
-                    <TextInput
-                        placeholder="Find a workshop, service..."
-                        style={[styles.searchInput, { color: theme.text }]}
-                        placeholderTextColor={theme.subText}
-                    />
-                    <TouchableOpacity>
-                        <Text style={styles.filterIcon}>⚙️</Text>
+                    <TouchableOpacity
+                        style={[styles.bellButton, { backgroundColor: theme.cardBackground }]}
+                        onPress={() => navigation.navigate('CustomerMenu')}
+                    >
+                        <MaterialCommunityIcons name="menu" size={24} color={theme.text} />
                     </TouchableOpacity>
                 </View>
-            </View>
 
-            {/* Filter Certified Section */}
-            <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleRow}>
-                    <Text style={[styles.sectionTitle, { color: theme.text }]}>FILTER Certified</Text>
-                    <Text style={styles.verifiedBadge}>✓</Text>
-                </View>
-                <TouchableOpacity>
-                    <Text style={styles.seeAllText}>See All</Text>
-                </TouchableOpacity>
-            </View>
-
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScrollPadding}>
-
-                {isLoading ? (
-                    <ActivityIndicator size="small" color={theme.tint} />
-                ) : (
-                    workshops.map((workshop) => (
-                        <WorkshopCard
-                            key={workshop.id}
-                            image={workshop.logoUrl ? { uri: workshop.logoUrl } : require('../assets/car_workshop.png')}
-                            title={workshop.name}
-                            rating={workshop.rating?.toString() || "N/A"}
-                            distance="-- mi" // Location calc needed
-                            location={workshop.address || "Unknown"}
-                            tags={workshop.type === 'workshop' ? ['Workshop'] : ['Technician']}
-                            isSponsored={false}
+                {/* Search Bar */}
+                <View style={styles.searchContainer}>
+                    <View style={[styles.searchBar, { backgroundColor: theme.inputBackground }]}>
+                        <Text style={styles.searchIcon}>🔍</Text>
+                        <TextInput
+                            placeholder="Find a workshop, service..."
+                            style={[styles.searchInput, { color: theme.text }]}
+                            placeholderTextColor={theme.subText}
                         />
-                    ))
-                )}
-
-                {/* Show empty state message if no workshops and not loading */}
-                {!isLoading && workshops.length === 0 && (
-                    <Text style={{ color: theme.subText, marginLeft: 5 }}>No workshops found nearby.</Text>
-                )}
-            </ScrollView>
-
-            {/* My Favorites Section */}
-            <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>My Favorites</Text>
-                <TouchableOpacity>
-                    <Text style={styles.seeAllText}>See All</Text>
-                </TouchableOpacity>
-            </View>
-
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScrollPadding}>
-                <FavoriteCard
-                    image={require('../assets/tires_wheel.png')}
-                    title="Downtown Tire & Wheel"
-                    subtitle="0.8 mi • 120 Main St"
-                    tag="Tires & Alignment"
-                />
-                <FavoriteCard
-                    image={require('../assets/car_workshop.png')}
-                    title="Quick Lube Station"
-                    subtitle="3.1 mi • Highway 9"
-                    tag="Oil Change"
-                />
-            </ScrollView>
-
-            {/* Emergency Section */}
-            <View style={styles.emergencyContainer}>
-                <View style={styles.emergencyContent}>
-                    <Text style={styles.emergencyTitle}>Need Emergency Help?</Text>
-                    <Text style={styles.emergencySubtitle}>
-                        24/7 Roadside assistance is just a tap away.
-                    </Text>
+                        <TouchableOpacity>
+                            <Text style={styles.filterIcon}>⚙️</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
-                <TouchableOpacity style={styles.sosButton}>
-                    <Text style={styles.sosTextSmall}>SOS</Text>
-                    <Text style={styles.sosTextLarge}>Get Help</Text>
-                </TouchableOpacity>
-            </View>
 
-        </ScrollView>
+                {/* Filter Certified Section */}
+                <View style={styles.sectionHeader}>
+                    <View style={styles.sectionTitleRow}>
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>FILTER Certified</Text>
+                        <Text style={styles.verifiedBadge}>✓</Text>
+                    </View>
+                    <TouchableOpacity>
+                        <Text style={styles.seeAllText}>See All</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.horizontalScrollPadding}>
+
+                    {isLoading ? (
+                        <ActivityIndicator size="small" color={theme.tint} />
+                    ) : (
+                        workshops.map((workshop) => (
+                            <WorkshopCard
+                                key={workshop.id}
+                                image={workshop.logoUrl ? { uri: workshop.logoUrl } : require('../../assets/car_workshop.png')}
+                                title={workshop.name}
+                                rating={workshop.rating?.toString() || "N/A"}
+                                distance="-- mi" // Location calc needed
+                                location={workshop.address || "Unknown"}
+                                tags={workshop.type === 'workshop' ? ['Workshop'] : ['Technician']}
+                                isSponsored={false}
+                            />
+                        ))
+                    )}
+
+                    {/* Show empty state message if no workshops and not loading */}
+                    {!isLoading && workshops.length === 0 && (
+                        <Text style={{ color: theme.subText, marginLeft: 5 }}>No workshops found nearby.</Text>
+                    )}
+                </ScrollView>
+
+                {/* My Favorites Section */}
+                <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>My Favorites</Text>
+                    <TouchableOpacity>
+                        <Text style={styles.seeAllText}>See All</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.horizontalScrollPadding}>
+                    <FavoriteCard
+                        image={require('../../assets/tires_wheel.png')}
+                        title="Downtown Tire & Wheel"
+                        subtitle="0.8 mi • 120 Main St"
+                        tag="Tires & Alignment"
+                    />
+                    <FavoriteCard
+                        image={require('../../assets/car_workshop.png')}
+                        title="Quick Lube Station"
+                        subtitle="3.1 mi • Highway 9"
+                        tag="Oil Change"
+                    />
+                </ScrollView>
+
+                {/* Emergency Section */}
+                <View style={styles.emergencyContainer}>
+                    <View style={styles.emergencyContent}>
+                        <Text style={styles.emergencyTitle}>Need Emergency Help?</Text>
+                        <Text style={styles.emergencySubtitle}>
+                            24/7 Roadside assistance is just a tap away.
+                        </Text>
+                    </View>
+                    <TouchableOpacity style={styles.sosButton}>
+                        <Text style={styles.sosTextSmall}>SOS</Text>
+                        <Text style={styles.sosTextLarge}>Get Help</Text>
+                    </TouchableOpacity>
+                </View>
+
+            </ScrollView>
+        </SafeAreaView>
     );
 }
 
