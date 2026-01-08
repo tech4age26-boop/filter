@@ -1,14 +1,56 @@
-import React from 'react';
-import { View, Text, ScrollView, Image, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+// Force refresh
+import { View, Text, ScrollView, Image, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../App';
 import { WorkshopCard, FavoriteCard } from '../components/CustomerComponents';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { useNavigation } from '@react-navigation/native';
 
+import { useTranslation } from 'react-i18next';
+
+// Production Vercel URL
+const API_BASE_URL = 'https://filter-server.vercel.app';
+
 export function CustomerHomeScreen() {
     const { theme } = useTheme();
+    const { t } = useTranslation();
     const navigation = useNavigation<any>();
+    const [userName, setUserName] = useState('Guest');
+    const [workshops, setWorkshops] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const loadUserData = async () => {
+            try {
+                const data = await AsyncStorage.getItem('user_data');
+                if (data) {
+                    const user = JSON.parse(data);
+                    setUserName(user.name || t('common.customer'));
+                }
+            } catch (error) {
+                console.error('Failed to load user data:', error);
+            }
+        };
+
+        const fetchWorkshops = async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/providers`);
+                const data = await response.json();
+                if (data.success) {
+                    setWorkshops(data.providers);
+                }
+            } catch (error) {
+                console.error('Failed to fetch workshops:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadUserData();
+        fetchWorkshops();
+    }, []);
 
     return (
         <ScrollView
@@ -27,16 +69,15 @@ export function CustomerHomeScreen() {
                         <View style={[styles.onlineBadge, { borderColor: theme.cardBackground }]} />
                     </View>
                     <View style={styles.welcomeTextContainer}>
-                        <Text style={styles.welcomeLabel}>WELCOME BACK</Text>
-                        <Text style={[styles.userName, { color: theme.text }]}>Alex Johnson</Text>
+                        <Text style={styles.welcomeLabel}>{t('home.welcome_back').toUpperCase()}</Text>
+                        <Text style={[styles.userName, { color: theme.text }]}>{userName}</Text>
                     </View>
                 </View>
                 <TouchableOpacity
                     style={[styles.bellButton, { backgroundColor: theme.cardBackground }]}
-                    onPress={() => navigation.navigate('Notifications')}
+                    onPress={() => navigation.navigate('CustomerMenu')}
                 >
-                    <Text style={styles.bellIcon}>🔔</Text>
-                    <View style={[styles.notificationDot, { borderColor: theme.cardBackground }]} />
+                    <MaterialCommunityIcons name="menu" size={24} color={theme.text} />
                 </TouchableOpacity>
             </View>
 
@@ -70,27 +111,28 @@ export function CustomerHomeScreen() {
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.horizontalScrollPadding}>
-                {/* Card 1 */}
-                <WorkshopCard
-                    image={require('../assets/car_workshop.png')}
-                    title="AutoFix Pro Center"
-                    rating="4.8"
-                    distance="2.5 mi"
-                    location="Downtown Area"
-                    tags={['Diagnostics', 'Quick Service']}
-                    isSponsored={true}
-                />
 
-                {/* Card 2 */}
-                <WorkshopCard
-                    image={require('../assets/tires_wheel.png')}
-                    title="Turbo Mechanics"
-                    rating="4.5"
-                    distance="1.8 mi"
-                    location="Westside"
-                    tags={['Tuning']}
-                    isSponsored={true}
-                />
+                {isLoading ? (
+                    <ActivityIndicator size="small" color={theme.tint} />
+                ) : (
+                    workshops.map((workshop) => (
+                        <WorkshopCard
+                            key={workshop.id}
+                            image={workshop.logoUrl ? { uri: workshop.logoUrl } : require('../assets/car_workshop.png')}
+                            title={workshop.name}
+                            rating={workshop.rating?.toString() || "N/A"}
+                            distance="-- mi" // Location calc needed
+                            location={workshop.address || "Unknown"}
+                            tags={workshop.type === 'workshop' ? ['Workshop'] : ['Technician']}
+                            isSponsored={false}
+                        />
+                    ))
+                )}
+
+                {/* Show empty state message if no workshops and not loading */}
+                {!isLoading && workshops.length === 0 && (
+                    <Text style={{ color: theme.subText, marginLeft: 5 }}>No workshops found nearby.</Text>
+                )}
             </ScrollView>
 
             {/* My Favorites Section */}

@@ -4,6 +4,7 @@ const cors = require('cors');
 const multer = require('multer');
 const registrationController = require('./controllers/RegistrationController');
 const customerController = require('./controllers/CustomerController');
+const loginController = require('./controllers/LoginController');
 const productServiceController = require('./controllers/ProductServiceController');
 
 const app = express();
@@ -25,14 +26,15 @@ const uploadRegistration = multer({ storage: storage }).fields([
 const uploadProductImages = multer({ storage: storage }).array('images', 4);
 
 app.post('/api/register', uploadRegistration, registrationController.registerProvider);
+app.get('/api/providers', registrationController.getProviders); // Add this
 app.post('/api/register-customer', customerController.registerCustomer);
+app.post('/api/login', loginController.login);
 
 // Product & Service Routes
 app.post('/api/products', uploadProductImages, productServiceController.createItem);
 app.get('/api/products', productServiceController.getItems);
 app.put('/api/products/:id', uploadProductImages, productServiceController.updateItem);
 app.delete('/api/products/:id', productServiceController.deleteItem);
->>>>>>> feature/CustomerScreens
 
 // Health check
 app.get('/', (req, res) => res.send('Filter API is running'));

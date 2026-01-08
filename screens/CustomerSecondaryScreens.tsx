@@ -72,6 +72,22 @@ export function SupportScreen() {
     );
 }
 
+export function WalletScreen() {
+    const { theme } = useTheme();
+    return (
+        <GenericScreen title="Wallet">
+            <View style={{ alignItems: 'center', marginBottom: 30 }}>
+                <Text style={{ fontSize: 16, color: theme.subText, marginBottom: 8 }}>Current Balance</Text>
+                <Text style={{ fontSize: 36, fontWeight: 'bold', color: theme.text }}>SAR 0.00</Text>
+            </View>
+            <View style={styles.emptyState}>
+                <MaterialCommunityIcons name="wallet-outline" size={64} color={theme.subText} />
+                <Text style={[styles.emptyText, { color: theme.subText }]}>No transactions yet</Text>
+            </View>
+        </GenericScreen>
+    );
+}
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,

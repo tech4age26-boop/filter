@@ -1,14 +1,26 @@
 import React from 'react';
-import { View, Text, ScrollView, Switch, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Switch, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useTheme } from '../App';
+import { useTheme, useAuth } from '../App';
 import { SettingsItem } from '../components/CustomerComponents';
 
 import { useNavigation } from '@react-navigation/native';
 
 export function CustomerSettingsScreen() {
     const { theme, toggleTheme, isDarkMode } = useTheme();
+    const { logout } = useAuth();
     const navigation = useNavigation<any>();
+
+    const handleLogout = () => {
+        Alert.alert(
+            "Log Out",
+            "Are you sure you want to log out?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "Log Out", style: 'destructive', onPress: logout }
+            ]
+        );
+    };
 
     return (
         <ScrollView
@@ -74,7 +86,12 @@ export function CustomerSettingsScreen() {
                         onPress={() => navigation.navigate('Support')}
                     />
                     <View style={[styles.divider, { backgroundColor: theme.border }]} />
-                    <SettingsItem icon="logout" label="Log Out" color="#FF3B30" />
+                    <SettingsItem
+                        icon="logout"
+                        label="Log Out"
+                        color="#FF3B30"
+                        onPress={handleLogout}
+                    />
                 </View>
 
             </View>

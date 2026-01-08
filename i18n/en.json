@@ -27,7 +27,9 @@
         "customer": "Customer",
         "service_provider": "Service Provider",
         "eta": "ETA",
-        "scheduled": "Scheduled"
+        "scheduled": "Scheduled",
+        "error": "Error",
+        "success": "Success"
     },
     "auth": {
         "login_title": "Login to your account",
@@ -40,7 +42,16 @@
         "forgot_password": "Forgot Password?",
         "dont_have_account": "Don't have an account?",
         "already_have_account": "Already have an account?",
-        "signup_customer": "Sign Up as Customer"
+        "signup_customer": "Sign Up as Customer",
+        "email_or_phone": "Email or Mobile Number",
+        "new_user": "New User?",
+        "error_fill_fields": "Please fill all fields",
+        "error_server": "Server error. Please try again.",
+        "error_invalid_credentials": "Invalid credentials. Please check your phone number and password.",
+        "error_connection": "Connection Error",
+        "error_connection_msg": "Unable to connect to server. Please check your internet connection and try again.",
+        "error_generic": "Something went wrong. Please try again.",
+        "login_failed": "Login Failed"
     },
     "registration": {
         "type_workshop": "Workshop",
@@ -144,5 +155,14 @@
         "engine_diagnostics": "Engine Diagnostics",
         "ac_repair": "AC Repair",
         "battery_replacement": "Battery Replacement"
+    },
+    "menu": {
+        "title": "Menu",
+        "wallet": "Wallet",
+        "my_orders": "My Orders",
+        "notifications": "Notifications",
+        "more": "More",
+        "support": "Help & Support",
+        "logout": "Log Out"
     }
 }

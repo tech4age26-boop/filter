@@ -15,6 +15,7 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -36,6 +37,15 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     const [showRegistration, setShowRegistration] = useState(false);
     const [showCustomerRegistration, setShowCustomerRegistration] = useState(false);
     const [dashboardType, setDashboardType] = useState<'provider' | 'technician' | null>(null);
+    const [loginIdentifier, setLoginIdentifier] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    const [selectedRole, setSelectedRole] = useState('owner'); // owner, cashier, technician, freelancer
+    const [showRoleSelector, setShowRoleSelector] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Production Vercel URL
+    const API_BASE_URL = 'https://filter-server.vercel.app';
+
     const insets = useSafeAreaInsets();
     const { t } = useTranslation();
 
@@ -54,14 +64,102 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                 const user = JSON.parse(data);
                 if (user.type === 'individual') {
                     setDashboardType('technician');
+                } else if (user.type === 'customer') {
+                    onLogin(); // Tell App.tsx to switch to MainApp
                 } else {
                     setDashboardType('provider');
                 }
             }
         } catch (e) {
-            setDashboardType('provider'); // Fallback
+            console.error(e);
         }
         setShowRegistration(false);
+        setShowCustomerRegistration(false);
+    };
+
+    const handleLogin = async () => {
+        if (!loginIdentifier || !loginPassword) {
+            Alert.alert(t('common.error'), t('auth.error_fill_fields'));
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const isEmail = loginIdentifier.includes('@');
+            const payload: any = {
+                password: loginPassword,
+            };
+
+            if (isEmail) {
+                payload['email'] = loginIdentifier;
+            } else {
+                payload['phone'] = loginIdentifier;
+            }
+
+            // If on Provider tab, send role
+            if (!isLogin) {
+                payload['role'] = selectedRole;
+                console.log('Provider login with role:', selectedRole);
+            }
+
+            console.log('Login attempt:', {
+                identifier: loginIdentifier,
+                role: selectedRole,
+                isProvider: !isLogin
+            });
+
+            const response = await fetch(`${API_BASE_URL}/api/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            console.log('Login response status:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Login failed with status:', response.status, errorText);
+                Alert.alert(t('common.error'), t('auth.error_server'));
+                setIsLoading(false);
+                return;
+            }
+
+            const data = await response.json();
+            console.log('Login response data:', data);
+
+            if (data.success) {
+                await AsyncStorage.setItem('user_data', JSON.stringify(data.user));
+
+                if (data.user.type === 'customer') {
+                    onLogin();
+                } else if (data.user.type === 'individual') {
+                    setDashboardType('technician');
+                } else {
+                    setDashboardType('provider');
+                }
+            } else {
+                Alert.alert(t('auth.login_failed'), data.message || t('auth.error_invalid_credentials'));
+            }
+        } catch (error: any) {
+            console.error('Login Error:', error);
+            console.error('Error details:', error.message);
+
+            if (error.message === 'Network request failed') {
+                Alert.alert(
+                    t('auth.error_connection'),
+                    t('auth.error_connection_msg')
+                );
+            } else {
+                Alert.alert(
+                    t('common.error'),
+                    t('auth.error_generic') + '\n\n' + error.message
+                );
+            }
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     if (showRegistration) {
@@ -99,7 +197,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                         <View style={authStyles.logoBadge}>
                             <Text style={authStyles.logoText}>FILTER</Text>
                         </View>
-                        <Text style={authStyles.tagline}>{t('auth.tagline')}</Text>
+                        <Text style={authStyles.tagline}>Your Trusted Auto Service Partner</Text>
                     </View>
 
                     {/* Tab Switcher */}
@@ -112,7 +210,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                                     authStyles.tabText,
                                     isLogin && authStyles.activeTabText,
                                 ]}>
-                                {t('common.customer')}
+                                Customer
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -123,48 +221,64 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                                     authStyles.tabText,
                                     !isLogin && authStyles.activeTabText,
                                 ]}>
-                                {t('common.service_provider')}
+                                Service Provider
                             </Text>
                         </TouchableOpacity>
                     </View>
 
                     {/* Form */}
                     <View style={authStyles.formContainer}>
-                        {/* Email */}
+                        {/* Input Fields - Show for both tabs now (Customer and Provider Login) */}
                         <View style={authStyles.inputContainer}>
                             <MaterialCommunityIcons
-                                name="email-outline"
+                                name={isLogin ? "account-outline" : "phone-outline"}
                                 size={20}
                                 color="#8E8E93"
                                 style={authStyles.inputIcon}
                             />
                             <TextInput
-                                placeholder={t('auth.email')}
+                                placeholder={isLogin ? 'Email or Mobile Number' : 'Mobile Number'}
                                 placeholderTextColor="#8E8E93"
                                 style={authStyles.input}
-                                keyboardType="email-address"
                                 autoCapitalize="none"
+                                keyboardType={!isLogin ? 'phone-pad' : 'default'}
+                                value={loginIdentifier}
+                                onChangeText={setLoginIdentifier}
                             />
                         </View>
 
-                        {!isLogin && (
-                            <View style={authStyles.inputContainer}>
-                                <MaterialCommunityIcons
-                                    name="phone-outline"
-                                    size={20}
-                                    color="#8E8E93"
-                                    style={authStyles.inputIcon}
-                                />
-                                <TextInput
-                                    placeholder={t('auth.mobile')}
-                                    placeholderTextColor="#8E8E93"
-                                    style={authStyles.input}
-                                    keyboardType="phone-pad"
-                                />
-                            </View>
-                        )}
+                        {/* Role Selector - Only for Provider Tab (Dropdown Style) */}
+
+
+                        {/* Role Dropdown Options */}
 
                         {/* Password */}
+                        {!isLogin && showRoleSelector && (
+                            <View style={authStyles.roleDropdown}>
+                                {['owner', 'cashier', 'technician', 'freelancer'].map((role) => (
+                                    <TouchableOpacity
+                                        key={role}
+                                        style={[
+                                            authStyles.roleOption,
+                                            selectedRole === role && authStyles.roleOptionSelected
+                                        ]}
+                                        onPress={() => {
+                                            setSelectedRole(role);
+                                            setShowRoleSelector(false);
+                                        }}>
+                                        <Text style={[
+                                            authStyles.roleOptionText,
+                                            selectedRole === role && authStyles.roleOptionTextSelected
+                                        ]}>
+                                            {role.charAt(0).toUpperCase() + role.slice(1)}
+                                        </Text>
+                                        {selectedRole === role && (
+                                            <MaterialCommunityIcons name="check" size={18} color="#F4C430" />
+                                        )}
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
                         <View style={authStyles.inputContainer}>
                             <MaterialCommunityIcons
                                 name="lock-outline"
@@ -173,95 +287,94 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                                 style={authStyles.inputIcon}
                             />
                             <TextInput
-                                placeholder={t('auth.password')}
+                                placeholder="Password"
                                 placeholderTextColor="#8E8E93"
                                 style={authStyles.input}
                                 secureTextEntry={!showPassword}
+                                value={loginPassword}
+                                onChangeText={setLoginPassword}
                             />
                             <TouchableOpacity
-                                style={authStyles.eyeIcon}
-                                onPress={() => setShowPassword(!showPassword)}>
+                                onPress={() => setShowPassword(!showPassword)}
+                                style={authStyles.eyeIcon}>
                                 <MaterialCommunityIcons
-                                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                                    name={showPassword ? 'eye-off' : 'eye'}
                                     size={20}
                                     color="#8E8E93"
                                 />
                             </TouchableOpacity>
                         </View>
-
-                        {/* Confirm Password (Sign Up Only) */}
                         {!isLogin && (
-                            <View style={authStyles.inputContainer}>
+                            <TouchableOpacity
+                                style={authStyles.inputContainer}
+                                onPress={() => setShowRoleSelector(!showRoleSelector)}>
                                 <MaterialCommunityIcons
-                                    name="lock-check-outline"
+                                    name="account-star"
                                     size={20}
                                     color="#8E8E93"
                                     style={authStyles.inputIcon}
                                 />
-                                <TextInput
-                                    placeholder={t('auth.confirm_password')}
-                                    placeholderTextColor="#8E8E93"
-                                    style={authStyles.input}
-                                    secureTextEntry={!showConfirmPassword}
-                                />
-                                <TouchableOpacity
-                                    style={authStyles.eyeIcon}
-                                    onPress={() =>
-                                        setShowConfirmPassword(!showConfirmPassword)
-                                    }>
-                                    <MaterialCommunityIcons
-                                        name={
-                                            showConfirmPassword ? 'eye-off-outline' : 'eye-outline'
-                                        }
-                                        size={20}
-                                        color="#8E8E93"
-                                    />
-                                </TouchableOpacity>
-                            </View>
-                        )}
-
-                        {/* Forgot Password (Login Only) */}
-                        {isLogin && (
-                            <TouchableOpacity style={authStyles.forgotPassword}>
-                                <Text style={authStyles.forgotPasswordText}>
-                                    {t('auth.forgot_password')}
+                                <Text style={[authStyles.input, { color: selectedRole ? '#1C1C1E' : '#8E8E93' }]}>
+                                    {selectedRole ? selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1) : 'Select Role'}
                                 </Text>
+                                <MaterialCommunityIcons
+                                    name={showRoleSelector ? "chevron-up" : "chevron-down"}
+                                    size={20}
+                                    color="#8E8E93"
+                                />
                             </TouchableOpacity>
                         )}
 
-                        {/* Continue Button */}
-                        <TouchableOpacity style={authStyles.continueButton} onPress={onLogin}>
-                            <Text style={authStyles.continueButtonText}>{t('common.continue')}</Text>
+                        {/* Forgot Password */}
+                        <TouchableOpacity style={authStyles.forgotPassword}>
+                            <Text style={authStyles.forgotPasswordText}>
+                                Forgot Password?
+                            </Text>
+                        </TouchableOpacity>
+
+                        {/* Login Button */}
+                        <TouchableOpacity
+                            style={authStyles.continueButton}
+                            onPress={handleLogin}
+                            disabled={isLoading}
+                        >
+                            <Text style={authStyles.continueButtonText}>
+                                {isLoading ? 'Loading...' : 'Login'}
+                            </Text>
                             <MaterialCommunityIcons
                                 name="arrow-right"
                                 size={20}
                                 color="#1C1C1E"
                             />
                         </TouchableOpacity>
+                    </View>
 
-                        {/* Customer Signup Button */}
-                        {isLogin && (
-                            <TouchableOpacity
-                                style={authStyles.customerSignupButton}
-                                onPress={() => {
-                                    console.log('Customer Signup Button Pressed');
-                                    setShowCustomerRegistration(true);
-                                }}>
-                                <MaterialCommunityIcons name="account-plus" size={20} color="#F4C430" style={{ marginRight: 8 }} />
-                                <Text style={authStyles.customerSignupText}>{t('auth.signup_customer')}</Text>
-                            </TouchableOpacity>
-                        )}
 
-                        {/* Technician Link */}
+
+                    {/* Footer Links */}
+                    {isLogin ? (
                         <TouchableOpacity
-                            style={authStyles.technicianLink}
-                            onPress={() => setShowRegistration(true)}>
-                            <Text style={authStyles.technicianText}>
-                                {t('common.provider_question')}{' '}
-                                <Text style={authStyles.technicianLinkText}>{t('common.apply_here')}</Text>
+                            style={authStyles.customerSignupButton}
+                            onPress={() => setShowCustomerRegistration(true)}>
+                            <Text style={{ color: '#8E8E93', marginRight: 4 }}>
+                                New User?
+                            </Text>
+                            <Text style={authStyles.customerSignupText}>
+                                Sign Up
                             </Text>
                         </TouchableOpacity>
-                    </View>
+                    ) : (
+                        <View style={authStyles.technicianLinkContainer}>
+                            <TouchableOpacity
+                                style={authStyles.technicianLink}
+                                onPress={() => setShowRegistration(true)}>
+                                <Text style={authStyles.technicianText}>
+                                    Want to join as Provider?{' '}
+                                    <Text style={authStyles.technicianLinkText}>Apply Here</Text>
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </ScrollView>
             </KeyboardAvoidingView>
         </ImageBackground>
@@ -410,6 +523,23 @@ const authStyles = StyleSheet.create({
         color: '#1C1C1E',
         marginRight: 8,
     },
+    technicianLinkContainer: {
+        marginTop: 24,
+        alignItems: 'center',
+    },
+    technicianLink: {
+        alignItems: 'center',
+        marginTop: 24,
+        marginBottom: 12,
+    },
+    technicianText: {
+        fontSize: 13,
+        color: '#8E8E93',
+    },
+    technicianLinkText: {
+        color: '#F4C430',
+        fontWeight: '600',
+    },
     dividerContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -451,16 +581,79 @@ const authStyles = StyleSheet.create({
         fontWeight: '600',
         color: '#1C1C1E',
     },
-    technicianLink: {
-        alignItems: 'center',
-        marginTop: 24,
-        marginBottom: 12,
+    roleContainer: {
+        marginTop: 10,
+        marginBottom: 10,
     },
-    technicianText: {
+    roleLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#8E8E93',
+        marginBottom: 8,
+        marginLeft: 4,
+    },
+    roleRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+        gap: 8,
+    },
+    roleButton: {
+        flex: 1,
+        paddingVertical: 10,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 8,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#EFEFEF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    roleButtonActive: {
+        backgroundColor: '#F4C430',
+        borderColor: '#F4C430',
+    },
+    roleButtonText: {
         fontSize: 13,
+        fontWeight: '600',
         color: '#8E8E93',
     },
-    technicianLinkText: {
+    roleButtonTextActive: {
+        color: '#1C1C1E',
+    },
+    roleDropdown: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        marginTop: -8,
+        marginBottom: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+        overflow: 'hidden',
+    },
+    roleOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
+    },
+    roleOptionSelected: {
+        backgroundColor: '#FFF9E6',
+    },
+    roleOptionText: {
+        fontSize: 15,
+        color: '#1C1C1E',
+        fontWeight: '500',
+    },
+    roleOptionTextSelected: {
         color: '#F4C430',
         fontWeight: '600',
     },

@@ -49,6 +49,8 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
     const [showPassword, setShowPassword] = useState(false);
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
     const [offersOutdoorServices, setOffersOutdoorServices] = useState(false);
+    const [selectedRole, setSelectedRole] = useState('owner'); // owner, cashier, technician, freelancer
+    const [isLoading, setIsLoading] = useState(false);
 
     // Image State
     const [logo, setLogo] = useState<string | null>(null);
@@ -147,10 +149,11 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
             return;
         }
 
+        setIsLoading(true);
         try {
             console.log('Building Form Data...');
             const formData = new FormData();
-            formData.append('type', registrationType);
+            formData.append('type', 'owner'); // Always set type as 'owner' in database
             formData.append('offersOutdoorServices', offersOutdoorServices.toString());
             formData.append('services', JSON.stringify(selectedServices));
 
@@ -159,11 +162,13 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
 
                 if (!workshopName || !fullName || !mobileNumber || !password || !confirmPassword || !crNumber || !vatNumber || !logo || !location) {
                     Alert.alert('Error', 'Please fill all fields, select an address, and upload a logo');
+                    setIsLoading(false);
                     return;
                 }
 
                 if (password !== confirmPassword) {
                     Alert.alert('Error', 'Passwords do not match');
+                    setIsLoading(false);
                     return;
                 }
                 formData.append('workshopName', workshopName);
@@ -192,11 +197,13 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
 
                 if (!fullName || !iqamaId || !mobileNumber || !password || !confirmPassword) {
                     Alert.alert('Error', 'Please fill all technician fields');
+                    setIsLoading(false);
                     return;
                 }
 
                 if (password !== confirmPassword) {
                     Alert.alert('Error', 'Passwords do not match');
+                    setIsLoading(false);
                     return;
                 }
                 formData.append('fullName', fullName);
@@ -228,9 +235,6 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
             const response = await fetch(API_URL, {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
             });
 
             console.log('Response Status:', response.status);
@@ -257,6 +261,8 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
         } catch (error) {
             console.error('Registration Error:', error);
             Alert.alert('Error', `Network Request Failed. \nDetails: ${error instanceof Error ? error.message : String(error)}`);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -305,7 +311,7 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                 regStyles.typeSwitchText,
                                 registrationType === 'workshop' && regStyles.typeSwitchTextActive
                             ]}>
-                                {t('registration.type_workshop')}
+                                Workshop
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -323,7 +329,7 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                                 regStyles.typeSwitchText,
                                 registrationType === 'individual' && regStyles.typeSwitchTextActive
                             ]}>
-                                {t('registration.type_individual')}
+                                Freelancer
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -861,13 +867,20 @@ export function RegistrationScreen({ onBack, onRegister }: RegistrationScreenPro
                             </TouchableOpacity>
 
                             {/* Submit Button */}
-                            <TouchableOpacity style={regStyles.submitButton} onPress={handleRegister}>
-                                <Text style={regStyles.submitButtonText}>{t('registration.submit')}</Text>
-                                <MaterialCommunityIcons
-                                    name="check-circle"
-                                    size={20}
-                                    color="#1C1C1E"
-                                />
+                            <TouchableOpacity
+                                style={[regStyles.submitButton, isLoading && { opacity: 0.6 }]}
+                                onPress={handleRegister}
+                                disabled={isLoading}>
+                                <Text style={regStyles.submitButtonText}>
+                                    {isLoading ? 'Loading...' : t('registration.submit')}
+                                </Text>
+                                {!isLoading && (
+                                    <MaterialCommunityIcons
+                                        name="check-circle"
+                                        size={20}
+                                        color="#1C1C1E"
+                                    />
+                                )}
                             </TouchableOpacity>
                         </View>
                     )}
@@ -1247,4 +1260,48 @@ const regStyles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 16,
     },
+    roleContainer: {
+        marginTop: 10,
+        marginBottom: 10,
+    },
+    roleLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#8E8E93',
+        marginBottom: 8,
+        marginLeft: 4,
+    },
+    roleRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+        gap: 8,
+    },
+    roleButton: {
+        flex: 1,
+        paddingVertical: 10,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 8,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#EFEFEF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    roleButtonActive: {
+        backgroundColor: '#F4C430',
+        borderColor: '#F4C430',
+    },
+    roleButtonText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#8E8E93',
+    },
+    roleButtonTextActive: {
+        color: '#1C1C1E',
+    },
 });
+``

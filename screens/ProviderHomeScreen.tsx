@@ -30,7 +30,9 @@ export function ProviderHomeScreen() {
         try {
             const data = await AsyncStorage.getItem('user_data');
             if (data) {
-                setUserData(JSON.parse(data));
+                const parsedData = JSON.parse(data);
+                console.log('Provider Dashboard - Loaded user data:', parsedData);
+                setUserData(parsedData);
             }
         } catch (error) {
             console.error('Error loading user data:', error);
@@ -41,7 +43,9 @@ export function ProviderHomeScreen() {
         <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
             <View style={[styles.header, { backgroundColor: theme.cardBackground, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
                 <View>
-                    <Text style={styles.greeting}>{t('home.welcome_back')}, {userData?.ownerName || t('common.user')}! 👋</Text>
+                    <Text style={styles.greeting}>
+                        {t('home.welcome_back')}, {userData?.ownerName || userData?.name || userData?.fullName || t('common.user')}! 👋
+                    </Text>
                     <Text style={[styles.shopName, { color: theme.text }]}>
                         {userData?.workshopName || 'Filter Workshop'}
                     </Text>

@@ -27,7 +27,9 @@
         "customer": "العميل",
         "service_provider": "مقدم خدمة",
         "eta": "الوقت المتوقع",
-        "scheduled": "الموعد"
+        "scheduled": "الموعد",
+        "error": "خطأ",
+        "success": "نجح"
     },
     "auth": {
         "login_title": "تسجيل الدخول إلى حسابك",
@@ -40,7 +42,16 @@
         "forgot_password": "نسيت كلمة المرور؟",
         "dont_have_account": "ليس لديك حساب؟",
         "already_have_account": "لديك حساب بالفعل؟",
-        "signup_customer": "تسجيل كعميل"
+        "signup_customer": "تسجيل كعميل",
+        "email_or_phone": "البريد الإلكتروني أو رقم الجوال",
+        "new_user": "مستخدم جديد؟",
+        "error_fill_fields": "يرجى ملء جميع الحقول",
+        "error_server": "خطأ في الخادم. يرجى المحاولة مرة أخرى.",
+        "error_invalid_credentials": "بيانات اعتماد غير صالحة. يرجى التحقق من رقم الهاتف وكلمة المرور.",
+        "error_connection": "خطأ في الاتصال",
+        "error_connection_msg": "تعذر الاتصال بالخادم. يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى.",
+        "error_generic": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+        "login_failed": "فشل تسجيل الدخول"
     },
     "registration": {
         "type_workshop": "ورشة عمل",
@@ -144,5 +155,14 @@
         "engine_diagnostics": "فحص المحرك",
         "ac_repair": "إصلاح التكيف",
         "battery_replacement": "استبدال البطارية"
+    },
+    "menu": {
+        "title": "القائمة",
+        "wallet": "المحفظة",
+        "my_orders": "طلباتي",
+        "notifications": "الإشعارات",
+        "more": "المزيد",
+        "support": "المساعدة والدعم",
+        "logout": "تسجيل الخروج"
     }
 }

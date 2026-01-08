@@ -68,8 +68,16 @@ export const ThemeContext = createContext({
   isDarkMode: false,
 });
 
+export const AuthContext = createContext({
+  logout: () => { },
+});
+
 export function useTheme() {
   return useContext(ThemeContext);
+}
+
+export function useAuth() {
+  return useContext(AuthContext);
 }
 
 // --- App Root ---
@@ -102,20 +110,31 @@ function App(): React.JSX.Element {
     return <View style={{ flex: 1, backgroundColor: '#121212' }} />;
   }
 
+  const logout = async () => {
+    try {
+      await AsyncStorage.removeItem('user_data');
+      setIsAuthenticated(false);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, isDarkMode }}>
       <SafeAreaProvider>
-        <StatusBar
-          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-          backgroundColor={theme.background}
-        />
-        {!isLanguageSelected ? (
-          <LanguageScreen onSelect={() => setIsLanguageSelected(true)} />
-        ) : isAuthenticated ? (
-          <MainApp />
-        ) : (
-          <AuthScreen onLogin={() => setIsAuthenticated(true)} />
-        )}
+        <AuthContext.Provider value={{ logout }}>
+          <StatusBar
+            barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+            backgroundColor={theme.background}
+          />
+          {!isLanguageSelected ? (
+            <LanguageScreen onSelect={() => setIsLanguageSelected(true)} />
+          ) : isAuthenticated ? (
+            <MainApp />
+          ) : (
+            <AuthScreen onLogin={() => setIsAuthenticated(true)} />
+          )}
+        </AuthContext.Provider>
       </SafeAreaProvider>
     </ThemeContext.Provider>
   );
@@ -130,11 +149,13 @@ import { CustomerHomeScreen } from './screens/CustomerHomeScreen';
 import { CustomerFindScreen } from './screens/CustomerFindScreen';
 import { CustomerOrdersScreen } from './screens/CustomerOrdersScreen';
 import { CustomerSettingsScreen } from './screens/CustomerSettingsScreen';
+import { CustomerMenuScreen } from './screens/CustomerMenuScreen';
 import {
   NotificationsScreen,
   EditProfileScreen,
   PaymentMethodsScreen,
-  SupportScreen
+  SupportScreen,
+  WalletScreen
 } from './screens/CustomerSecondaryScreens';
 
 const Tab = createBottomTabNavigator();
@@ -187,7 +208,6 @@ function CustomerTabs() {
     >
       <Tab.Screen name="Home" component={CustomerHomeScreen} />
       <Tab.Screen name="Find" component={CustomerFindScreen} />
-      <Tab.Screen name="Orders" component={CustomerOrdersScreen} />
       <Tab.Screen name="Settings" component={CustomerSettingsScreen} />
     </Tab.Navigator>
   );
@@ -198,6 +218,9 @@ function MainApp() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
+        <Stack.Screen name="CustomerMenu" component={CustomerMenuScreen} />
+        <Stack.Screen name="Orders" component={CustomerOrdersScreen} />
+        <Stack.Screen name="Wallet" component={WalletScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
