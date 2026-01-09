@@ -14,9 +14,10 @@ import {
     NotificationsScreen,
     EditProfileScreen,
     PaymentMethodsScreen,
-    SupportScreen,
-    WalletScreen
+    SupportScreen
 } from '../Screens/CustomerSecondaryScreens';
+import { WalletScreen } from '../Screens/WalletScreen';
+import { WorkshopDetailScreen } from '../Screens/WorkshopDetailScreen';
 import { Alert, View } from 'react-native';
 
 const Tab = createBottomTabNavigator();
@@ -88,6 +89,7 @@ export function MainApp() {
                     <Stack.Screen name="EditProfile" component={EditProfileScreen} />
                     <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
                     <Stack.Screen name="Support" component={SupportScreen} />
+                    <Stack.Screen name="WorkshopDetail" component={WorkshopDetailScreen} />
                 </Stack.Navigator>
             </NavigationContainer>
         </View>

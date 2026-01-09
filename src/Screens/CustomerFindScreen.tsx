@@ -1,11 +1,42 @@
-import React from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { WorkshopCard } from '../components/CustomerComponents';
 import { useTheme } from '../Theme/GlobalTheme';
+import { useNavigation } from '@react-navigation/native';
+import { API_BASE_URL } from '../Config/config';
 
 export function CustomerFindScreen() {
     const { theme } = useTheme();
+    const navigation = useNavigation<any>();
+    const [workshops, setWorkshops] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        fetchWorkshops();
+    }, []);
+
+    const fetchWorkshops = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch(`${API_BASE_URL}/api/workshops`);
+            const data = await response.json();
+            if (data.success) {
+                setWorkshops(data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching workshops:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filteredWorkshops = workshops.filter(w =>
+        w.workshopName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
         <ScrollView
             showsVerticalScrollIndicator={false}
@@ -17,52 +48,52 @@ export function CustomerFindScreen() {
                     <Text style={[styles.sectionTitle, { fontSize: 24, color: theme.text }]}>Find Workshops</Text>
                 </View>
                 <TouchableOpacity style={[styles.bellButton, { backgroundColor: theme.cardBackground }]}>
-                    <MaterialCommunityIcons name="filter-variant" size={24} color={theme.iconColor} />
+                    <MaterialCommunityIcons name="filter-variant" size={24} color={theme.text} />
                 </TouchableOpacity>
             </View>
 
             <View style={styles.searchContainer}>
-                <View style={[styles.searchBar, { backgroundColor: theme.inputBackground }]}>
+                <View style={[styles.searchBar, { backgroundColor: theme.cardBackground }]}>
                     <Text style={styles.searchIcon}>🔍</Text>
                     <TextInput
                         placeholder="Search by name, service..."
                         style={[styles.searchInput, { color: theme.text }]}
                         placeholderTextColor={theme.subText}
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
                     />
                 </View>
             </View>
 
-            <View style={styles.listPadding}>
-                <WorkshopCard
-                    image={require('../../assets/car_workshop.png')}
-                    title="AutoFix Pro Center"
-                    rating="4.8"
-                    distance="2.5 mi"
-                    location="Downtown Area"
-                    tags={['Diagnostics', 'Quick Service']}
-                    isSponsored={true}
-                    fullWidth={true}
-                />
-                <WorkshopCard
-                    image={require('../../assets/tires_wheel.png')}
-                    title="Speedy Repair Hub"
-                    rating="4.6"
-                    distance="4.2 mi"
-                    location="North Hills"
-                    tags={['Engine', 'Tuning']}
-                    fullWidth={true}
-                />
-                <WorkshopCard
-                    image={require('../../assets/car_workshop.png')}
-                    title="Premium Auto Care"
-                    rating="5.0"
-                    distance="5.0 mi"
-                    location="Eastside"
-                    tags={['Detailing', 'Oil Change']}
-                    isNew={true}
-                    fullWidth={true}
-                />
-            </View>
+            {loading ? (
+                <View style={{ marginTop: 50 }}>
+                    <ActivityIndicator size="large" color="#F4C430" />
+                </View>
+            ) : (
+                <View style={styles.listPadding}>
+                    {filteredWorkshops.map((workshop) => (
+                        <TouchableOpacity
+                            key={workshop._id}
+                            activeOpacity={0.9}
+                            onPress={() => navigation.navigate('WorkshopDetail', { workshop })}
+                        >
+                            <WorkshopCard
+                                image={{ uri: workshop.frontPhotoUrl }}
+                                title={workshop.workshopName}
+                                rating={workshop.rating.toString()}
+                                distance="2.5 mi"
+                                location={workshop.address || "Riyadh"}
+                                tags={workshop.services?.slice(0, 2) || []}
+                                isSponsored={workshop.status === 'active'}
+                                fullWidth={true}
+                            />
+                        </TouchableOpacity>
+                    ))}
+                    {filteredWorkshops.length === 0 && (
+                        <Text style={{ textAlign: 'center', color: theme.subText, marginTop: 20 }}>No workshops found</Text>
+                    )}
+                </View>
+            )}
         </ScrollView>
     );
 }

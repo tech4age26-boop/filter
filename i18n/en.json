@@ -164,5 +164,21 @@
         "more": "More",
         "support": "Help & Support",
         "logout": "Log Out"
+    },
+    "wallet": {
+        "title": "Wallet",
+        "balance": "Current Balance",
+        "add_money": "Add Money",
+        "top_up": "Top Up Wallet",
+        "accept_invoices": "Accept Invoices",
+        "history": "Transaction History",
+        "no_invoices": "No pending invoices",
+        "no_transactions": "No transactions yet",
+        "fake_card": "Fake Card Number (e.g. 1234...)",
+        "amount": "Amount (SAR)",
+        "add_cash": "Add Cash",
+        "insufficient": "Insufficient Balance",
+        "success_add": "added to your wallet!",
+        "success_pay": "Invoice paid successfully!"
     }
 }

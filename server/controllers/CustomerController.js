@@ -17,16 +17,22 @@ const registerCustomer = async (req, res) => {
         // Connect to Mongo inside the handler
         await client.connect();
         const db = client.db('filter');
-        const collection = db.collection('customers');
+        const customersCollection = db.collection('customers');
+        const providersCollection = db.collection('register_workshop');
 
-        // Check if customer already exists
-        const existingCustomer = await collection.findOne({
-            $or: [{ phone: phone }, { email: email }]
-        });
+        // Check if phone exists in either collection
+        const existingInCustomers = await customersCollection.findOne({ phone: phone });
+        const existingInProviders = await providersCollection.findOne({ mobileNumber: phone });
 
-        if (existingCustomer) {
-            return res.status(400).json({ success: false, message: 'Customer already exists' });
+        if (existingInCustomers || existingInProviders) {
+            console.log('Customer Registration failed: Phone already registered:', phone);
+            return res.status(400).json({
+                success: false,
+                message: 'This mobile number is already registered'
+            });
         }
+
+        const collection = customersCollection;
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
