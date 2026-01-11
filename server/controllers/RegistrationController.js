@@ -62,7 +62,24 @@ const registerProvider = async (req, res) => {
         }
 
         const db = client.db('filter');
-        const collection = db.collection('register_workshop');
+        const providersCollection = db.collection('register_workshop');
+        const customersCollection = db.collection('customers');
+
+        // Check if phone exists in either collection
+        const existingInProviders = await providersCollection.findOne({ mobileNumber: mobileNumber });
+        const existingInCustomers = await customersCollection.findOne({ phone: mobileNumber });
+
+        if (existingInProviders || existingInCustomers) {
+            console.log('Registration failed: Phone already registered:', mobileNumber);
+            return res.status(400).json({
+                success: false,
+                message: 'This mobile number is already registered'
+            });
+        }
+
+        // Use providersCollection for the rest of the logic
+        const collection = providersCollection;
+
 
         if (req.files && req.files['logo']) {
             console.log('Uploading logo to Cloudinary...');

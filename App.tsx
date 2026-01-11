@@ -12,16 +12,16 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/Theme/GlobalTheme';
 import { AuthProvider, useAuth } from './src/Context/AuthContext';
 import { LanguageProvider, useLanguage } from './src/Context/LanguageContext';
-import { MainApp } from './src/Navigation/Navigation';
-import { LanguageScreen } from './src/Screens/LanguageScreen';
-import { AuthScreen } from './src/Screens/AuthScreen';
+import { RootNavigator } from './src/Navigation/Navigation';
+import { PendingApprovalScreen } from './src/Screens/PendingApprovalScreen';
 import { SplashScreen } from './src/Screens/Common/SplashScreen';
+import { LanguageScreen } from './src/Screens/LanguageScreen';
 
 function AppContent() {
   const [showSplash, setShowSplash] = useState(true);
   const { theme, isDarkMode } = useTheme();
   const { isLanguageSelected, setLanguageSelected } = useLanguage();
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, isPending, loading } = useAuth();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -40,13 +40,18 @@ function AppContent() {
     return <LanguageScreen onSelect={() => setLanguageSelected(true)} />;
   }
 
+  // 🔥 Pending Approval gate
+  if (isPending) {
+    return <PendingApprovalScreen />;
+  }
+
   return (
     <>
       <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={theme.background}
       />
-      {isAuthenticated ? <MainApp /> : <AuthScreen />}
+      <RootNavigator />
     </>
   );
 }

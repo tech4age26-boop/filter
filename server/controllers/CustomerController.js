@@ -17,16 +17,22 @@ const registerCustomer = async (req, res) => {
         // Connect to Mongo inside the handler
         await client.connect();
         const db = client.db('filter');
-        const collection = db.collection('customers');
+        const customersCollection = db.collection('customers');
+        const providersCollection = db.collection('register_workshop');
 
-        // Check if customer already exists
-        const existingCustomer = await collection.findOne({
-            $or: [{ phone: phone }, { email: email }]
-        });
+        // Check if phone exists in either collection
+        const existingInCustomers = await customersCollection.findOne({ phone: phone });
+        const existingInProviders = await providersCollection.findOne({ mobileNumber: phone });
 
-        if (existingCustomer) {
-            return res.status(400).json({ success: false, message: 'Customer already exists' });
+        if (existingInCustomers || existingInProviders) {
+            console.log('Customer Registration failed: Phone already registered:', phone);
+            return res.status(400).json({
+                success: false,
+                message: 'This mobile number is already registered'
+            });
         }
+
+        const collection = customersCollection;
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -36,7 +42,9 @@ const registerCustomer = async (req, res) => {
             email,
             password: hashedPassword,
             createdAt: new Date(),
-            type: 'customer'
+            type: 'customer',
+            isCooperative: !!req.body.isCooperative,
+            status: req.body.isCooperative ? 'pending' : 'active'
         };
 
         const result = await collection.insertOne(customerData);
@@ -50,7 +58,7 @@ const registerCustomer = async (req, res) => {
                 name,
                 phone,
                 email,
-                type: 'customer'
+                type: 'customer',
             }
         });
 
@@ -60,6 +68,54 @@ const registerCustomer = async (req, res) => {
     }
 };
 
+const getCustomerById = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!id) {
+            return res.status(400).json({ success: false, message: 'User ID is required' });
+        }
+
+        const { ObjectId } = require('mongodb');
+
+        await client.connect();
+        const db = client.db('filter');
+        const customersCollection = db.collection('customers');
+
+        // Try searching by string ID first, then ObjectId if that fails or vice versa
+        // Usually _id is ObjectId.
+        let query = {};
+        try {
+            query = { _id: new ObjectId(id) };
+        } catch (e) {
+            query = { _id: id };
+        }
+
+        const customer = await customersCollection.findOne(query);
+
+        if (!customer) {
+            return res.status(404).json({ success: false, message: 'Customer not found' });
+        }
+
+        res.status(200).json({
+            success: true,
+            customer: {
+                _id: customer._id,
+                name: customer.name,
+                email: customer.email,
+                phone: customer.phone,
+                status: customer.status,
+                type: customer.type
+            }
+        });
+
+    } catch (error) {
+        console.error('Get Customer Error:', error);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
 module.exports = {
-    registerCustomer
+    registerCustomer,
+    getCustomerById
 };

@@ -17,7 +17,12 @@ import {
     SupportScreen,
     WalletScreen
 } from '../Screens/CustomerSecondaryScreens';
-import { Alert, View } from 'react-native';
+import { useAuth } from '../Context/AuthContext';
+import { View } from 'react-native';
+import { AuthScreen } from '../Screens/AuthScreen';
+import { ForgotPasswordScreen } from '../Screens/ForgotPasswordScreen';
+import { VerifyOtpScreen } from '../Screens/VerifyOtpScreen';
+import { PendingApprovalScreen } from '../Screens/PendingApprovalScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -74,20 +79,41 @@ function CustomerTabs() {
     );
 }
 
-export function MainApp() {
-    console.log('MainApp rendering...');
+export function RootNavigator() {
+    const { isAuthenticated, isPending } = useAuth();
+    console.log('RootNavigator: isAuthenticated =', isAuthenticated, 'isPending =', isPending);
+
     return (
         <View style={{ flex: 1 }}>
             <NavigationContainer>
                 <Stack.Navigator screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
-                    <Stack.Screen name="CustomerMenu" component={CustomerMenuScreen} />
-                    <Stack.Screen name="Orders" component={CustomerOrdersScreen} />
-                    <Stack.Screen name="Wallet" component={WalletScreen} />
-                    <Stack.Screen name="Notifications" component={NotificationsScreen} />
-                    <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-                    <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
-                    <Stack.Screen name="Support" component={SupportScreen} />
+                    {isAuthenticated ? (
+                        isPending ? (
+                            // Pending Group
+                            <Stack.Group>
+                                <Stack.Screen name="PendingApproval" component={PendingApprovalScreen} />
+                            </Stack.Group>
+                        ) : (
+                            // Main App Group
+                            <Stack.Group>
+                                <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
+                                <Stack.Screen name="CustomerMenu" component={CustomerMenuScreen} />
+                                <Stack.Screen name="Orders" component={CustomerOrdersScreen} />
+                                <Stack.Screen name="Wallet" component={WalletScreen} />
+                                <Stack.Screen name="Notifications" component={NotificationsScreen} />
+                                <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+                                <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
+                                <Stack.Screen name="Support" component={SupportScreen} />
+                            </Stack.Group>
+                        )
+                    ) : (
+                        // Auth Group
+                        <Stack.Group>
+                            <Stack.Screen name="Auth" component={AuthScreen} />
+                            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+                            <Stack.Screen name="VerifyOtp" component={VerifyOtpScreen} />
+                        </Stack.Group>
+                    )}
                 </Stack.Navigator>
             </NavigationContainer>
         </View>

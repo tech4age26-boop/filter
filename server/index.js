@@ -6,6 +6,9 @@ const registrationController = require('./controllers/RegistrationController');
 const customerController = require('./controllers/CustomerController');
 const loginController = require('./controllers/LoginController');
 const productServiceController = require('./controllers/ProductServiceController');
+const workshopController = require('./controllers/WorkshopController');
+const employeeController = require('./controllers/EmployeeController');
+const orderController = require('./controllers/OrderController');
 
 const app = express();
 app.use(cors());
@@ -28,7 +31,15 @@ const uploadProductImages = multer({ storage: storage }).array('images', 4);
 app.post('/api/register', uploadRegistration, registrationController.registerProvider);
 app.get('/api/providers', registrationController.getProviders); // Add this
 app.post('/api/register-customer', customerController.registerCustomer);
+app.get('/api/customer/:id', customerController.getCustomerById);
 app.post('/api/login', loginController.login);
+app.post('/api/forgot-password', loginController.forgotPassword);
+app.post('/api/verify-otp', loginController.verifyOtp);
+app.get('/api/workshops', workshopController.getWorkshops);
+app.post('/api/add-employee', employeeController.addEmployee);
+app.get('/api/employees', employeeController.getEmployees);
+app.post('/api/orders', orderController.createOrder);
+app.get('/api/orders', orderController.getCustomerOrders);
 
 // Product & Service Routes
 app.post('/api/products', uploadProductImages, productServiceController.createItem);

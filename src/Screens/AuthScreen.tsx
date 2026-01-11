@@ -19,15 +19,19 @@ import {
     Modal,
     ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API_BASE_URL } from '../Config/config';
 import { useAuth } from '../Context/AuthContext';
 import { save } from '../Utils/reuabsle';
+import { ShiningLoader } from '../components/ShiningLoader';
+import RNRestart from 'react-native-restart';
 
 export function AuthScreen() {
-    const { login } = useAuth();
+    const { login, fetchUserData } = useAuth();
+    const navigation = useNavigation<any>();
 
     const [isLogin, setIsLogin] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
@@ -44,6 +48,9 @@ export function AuthScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [isCooperative, setIsCooperative] = useState(false);
+
+
 
     // Production Vercel URL
     const [errorModalVisible, setErrorModalVisible] = useState(false);
@@ -51,7 +58,14 @@ export function AuthScreen() {
 
 
     const insets = useSafeAreaInsets();
-    const { t } = useTranslation();
+
+    const { t, i18n } = useTranslation();
+
+    const toggleLanguage = async () => {
+        const newLang = i18n.language === 'en' ? 'ar' : 'en';
+        await i18n.changeLanguage(newLang);
+        // Force reload to ensure all layout/text changes propagate, especially for RTL
+    };
 
     const showError = (message: string) => {
         setErrorMessage(message);
@@ -119,8 +133,28 @@ export function AuthScreen() {
                     return;
                 }
 
-                await save('user_data', data.user);
-                await login(data.user);
+                let userData = data.user;
+
+                // Fetch fresh data to ensure status is up-to-date
+                try {
+                    const userId = userData.id || userData._id;
+                    const freshData = await fetchUserData(userId);
+                    console.log("Fresh login data:", freshData);
+
+                    if (freshData.success && freshData.customer) {
+                        userData = {
+                            ...userData,
+                            ...freshData.customer,
+                            id: freshData.customer._id || freshData.customer.id || userId,
+                            status: freshData.customer.status,
+                        };
+                    }
+                } catch (err) {
+                    console.error("Error fetching fresh user data after login:", err);
+                }
+
+                await save('user_data', userData);
+                await login(userData);
             }
 
         } catch (error: any) {
@@ -169,18 +203,35 @@ export function AuthScreen() {
                     phone,
                     email,
                     password,
+                    isCooperative,
                 }),
             });
 
             const data = await response.json();
             if (data.success) {
-                const userData = {
-                    id: data.customerId || data.customer?._id,
+                const userId = data.customerId || data.customer?._id;
+                let userData = {
+                    id: userId,
                     type: 'customer',
                     name: data.customer?.name,
                     phone: data.customer?.phone,
                     email: data.customer?.email,
                 };
+
+                try {
+                    const freshData = await fetchUserData(userId);
+                    console.log("Fresh registration data:", freshData);
+                    if (freshData.success && freshData.customer) {
+                        userData = {
+                            ...userData,
+                            ...freshData.customer,
+                            id: freshData.customer._id || freshData.customer.id || userId,
+                            status: freshData.customer.status,
+                        };
+                    }
+                } catch (err) {
+                    console.error("Error fetching fresh user data after register:", err);
+                }
 
                 await save('user_data', userData);
                 await login(userData);
@@ -218,20 +269,30 @@ export function AuthScreen() {
                         <View style={authStyles.logoBadge}>
                             <Text style={authStyles.logoText}>FILTER</Text>
                         </View>
-                        <Text style={authStyles.tagline}>Your Trusted Auto Service Partner</Text>
+                        <Text style={authStyles.tagline}>{t('auth.tagline')}</Text>
                     </View>
+
+                    {/* Language Toggle - Floating Top Right */}
+                    <TouchableOpacity
+                        style={authStyles.languageButton}
+                        onPress={toggleLanguage}
+                    >
+                        <Text style={authStyles.languageButtonText}>
+                            {i18n.language === 'en' ? 'Ar' : 'En'}
+                        </Text>
+                    </TouchableOpacity>
 
                     {/* Tab Switcher */}
                     <View style={authStyles.tabContainer}>
                         <TouchableOpacity
                             style={[authStyles.tab, isLogin && authStyles.activeTab]}
                             onPress={() => setIsLogin(true)}>
-                            <Text style={[authStyles.tabText, isLogin && authStyles.activeTabText]}>Log In</Text>
+                            <Text style={[authStyles.tabText, isLogin && authStyles.activeTabText]}>{t('common.login')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[authStyles.tab, !isLogin && authStyles.activeTab]}
                             onPress={() => setIsLogin(false)}>
-                            <Text style={[authStyles.tabText, !isLogin && authStyles.activeTabText]}>Sign Up</Text>
+                            <Text style={[authStyles.tabText, !isLogin && authStyles.activeTabText]}>{t('common.register')}</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -243,7 +304,7 @@ export function AuthScreen() {
                                 <View style={authStyles.inputContainer}>
                                     <MaterialCommunityIcons name="account-outline" size={20} color="#8E8E93" style={authStyles.inputIcon} />
                                     <TextInput
-                                        placeholder='Email or Mobile Number'
+                                        placeholder={t('auth.email_or_phone')}
                                         placeholderTextColor="#8E8E93"
                                         style={authStyles.input}
                                         autoCapitalize="none"
@@ -254,7 +315,7 @@ export function AuthScreen() {
                                 <View style={authStyles.inputContainer}>
                                     <MaterialCommunityIcons name="lock-outline" size={20} color="#8E8E93" style={authStyles.inputIcon} />
                                     <TextInput
-                                        placeholder="Password"
+                                        placeholder={t('auth.password')}
                                         placeholderTextColor="#8E8E93"
                                         style={authStyles.input}
                                         secureTextEntry={!showPassword}
@@ -265,12 +326,12 @@ export function AuthScreen() {
                                         <MaterialCommunityIcons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#8E8E93" />
                                     </TouchableOpacity>
                                 </View>
-                                <TouchableOpacity style={authStyles.forgotPassword}>
-                                    <Text style={authStyles.forgotPasswordText}>Forgot Password?</Text>
+                                <TouchableOpacity style={authStyles.forgotPassword} onPress={() => navigation.navigate("ForgotPassword")}>
+                                    <Text style={authStyles.forgotPasswordText}>{t('auth.forgot_password')}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={authStyles.continueButton} onPress={handleLogin} disabled={isLoading}>
-                                    <Text style={authStyles.continueButtonText}>{isLoading ? 'Loading...' : 'Login'}</Text>
-                                    <MaterialCommunityIcons name="arrow-right" size={20} color="#1C1C1E" />
+                                    <Text style={authStyles.continueButtonText}>{isLoading ? t('common.loading') : t('auth.logging_in')}</Text>
+                                    <MaterialCommunityIcons name={i18n.language === 'ar' ? "arrow-left" : "arrow-right"} size={20} color="#1C1C1E" />
                                 </TouchableOpacity>
                             </>
                         ) : (
@@ -279,7 +340,7 @@ export function AuthScreen() {
                                 <View style={authStyles.inputContainer}>
                                     <MaterialCommunityIcons name="account-outline" size={20} color="#8E8E93" style={authStyles.inputIcon} />
                                     <TextInput
-                                        placeholder="Full Name"
+                                        placeholder={t('registration.full_name')}
                                         placeholderTextColor="#8E8E93"
                                         style={authStyles.input}
                                         value={name}
@@ -289,7 +350,7 @@ export function AuthScreen() {
                                 <View style={authStyles.inputContainer}>
                                     <MaterialCommunityIcons name="phone-outline" size={20} color="#8E8E93" style={authStyles.inputIcon} />
                                     <TextInput
-                                        placeholder="Mobile Number"
+                                        placeholder={t('auth.mobile')}
                                         placeholderTextColor="#8E8E93"
                                         style={authStyles.input}
                                         keyboardType="phone-pad"
@@ -300,7 +361,7 @@ export function AuthScreen() {
                                 <View style={authStyles.inputContainer}>
                                     <MaterialCommunityIcons name="email-outline" size={20} color="#8E8E93" style={authStyles.inputIcon} />
                                     <TextInput
-                                        placeholder="Email (Optional)"
+                                        placeholder={t('auth.email')}
                                         placeholderTextColor="#8E8E93"
                                         style={authStyles.input}
                                         autoCapitalize="none"
@@ -311,7 +372,7 @@ export function AuthScreen() {
                                 <View style={authStyles.inputContainer}>
                                     <MaterialCommunityIcons name="lock-outline" size={20} color="#8E8E93" style={authStyles.inputIcon} />
                                     <TextInput
-                                        placeholder="Password"
+                                        placeholder={t('auth.password')}
                                         placeholderTextColor="#8E8E93"
                                         style={authStyles.input}
                                         secureTextEntry={!showPassword}
@@ -325,7 +386,7 @@ export function AuthScreen() {
                                 <View style={authStyles.inputContainer}>
                                     <MaterialCommunityIcons name="lock-check-outline" size={20} color="#8E8E93" style={authStyles.inputIcon} />
                                     <TextInput
-                                        placeholder="Confirm Password"
+                                        placeholder={t('auth.confirm_password')}
                                         placeholderTextColor="#8E8E93"
                                         style={authStyles.input}
                                         secureTextEntry={!showConfirmPassword}
@@ -336,9 +397,25 @@ export function AuthScreen() {
                                         <MaterialCommunityIcons name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color="#8E8E93" />
                                     </TouchableOpacity>
                                 </View>
+
+                                <TouchableOpacity
+                                    style={authStyles.checkboxContainer}
+                                    onPress={() => setIsCooperative(!isCooperative)}
+                                    activeOpacity={0.7}
+                                >
+
+                                    <View style={{ borderColor: '#F4C430', borderWidth: 1, backgroundColor: isCooperative ? '#F4C430' : '#FFFFFF', borderRadius: 4, padding: 0 }}>
+                                        <MaterialCommunityIcons
+                                            name={"check"}
+                                            color={"#FFFFFF"}
+                                            size={20}
+                                        />
+                                    </View>
+                                    <Text style={authStyles.checkboxLabel}>{t('auth.are_you_cooperative')}</Text>
+                                </TouchableOpacity>
                                 <TouchableOpacity style={authStyles.continueButton} onPress={handleRegister} disabled={isLoading}>
-                                    <Text style={authStyles.continueButtonText}>{isLoading ? 'Loading...' : 'Sign Up'}</Text>
-                                    <MaterialCommunityIcons name="arrow-right" size={20} color="#1C1C1E" />
+                                    <Text style={authStyles.continueButtonText}>{isLoading ? t('common.loading') : t('auth.signing_up')}</Text>
+                                    <MaterialCommunityIcons name={i18n.language === 'ar' ? "arrow-left" : "arrow-right"} size={20} color="#1C1C1E" />
                                 </TouchableOpacity>
                             </>
                         )}
@@ -394,14 +471,7 @@ export function AuthScreen() {
             </Modal>
 
             {/* Loading Overlay */}
-            {isLoading && (
-                <View style={authStyles.loadingOverlay}>
-                    <View style={authStyles.loadingCard}>
-                        <ActivityIndicator size="large" color="#F4C430" />
-                        <Text style={authStyles.loadingText}>Processing...</Text>
-                    </View>
-                </View>
-            )}
+            <ShiningLoader visible={isLoading} />
         </ImageBackground>
     );
 }
@@ -536,6 +606,7 @@ const authStyles = StyleSheet.create({
         color: '#1C1C1E',
         marginRight: 8,
     },
+
     dividerContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -666,6 +737,37 @@ const authStyles = StyleSheet.create({
     },
     errorModalButtonText: {
         fontSize: 16,
+        fontWeight: 'bold',
+        color: '#1C1C1E',
+    },
+    checkboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+        paddingHorizontal: 4,
+    },
+    checkboxLabel: {
+        marginLeft: 8,
+        fontSize: 14,
+        color: '#28282bff',
+    },
+    languageButton: {
+        position: 'absolute',
+        top: 30, // Adjust based on insets if needed, but safe area handles general container
+        right: 20,
+        backgroundColor: '#F4C430',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        zIndex: 10,
+    },
+    languageButtonText: {
+        fontSize: 14,
         fontWeight: 'bold',
         color: '#1C1C1E',
     },

@@ -109,6 +109,58 @@ const login = async (req, res) => {
     }
 };
 
+
+const forgotPassword = async (req, res) => {
+    try {
+        console.log('Forgot Password request:', req.body);
+        const { phone } = req.body;
+
+        if (!phone) {
+            return res.status(400).json({ success: false, message: 'Phone number is required' });
+        }
+
+        // Mock: Always success for now
+        res.json({
+            success: true,
+            message: 'OTP sent successfully to ' + phone
+        });
+
+    } catch (error) {
+        console.error('Forgot Password Error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+const verifyOtp = async (req, res) => {
+    try {
+        console.log('Verify OTP request:', req.body);
+        const { phone, otp } = req.body;
+
+        if (!phone || !otp) {
+            return res.status(400).json({ success: false, message: 'Phone and OTP are required' });
+        }
+
+        // Mock: Static OTP check
+        if (otp === '1234') {
+            res.json({
+                success: true,
+                message: 'OTP verified successfully'
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: 'Invalid OTP'
+            });
+        }
+
+    } catch (error) {
+        console.error('Verify OTP Error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
 module.exports = {
-    login
+    login,
+    forgotPassword,
+    verifyOtp
 };
